@@ -13,6 +13,7 @@ with open('bot.yml', 'r') as file:
 # Initializes the discord bot client
 N_RUS_BOT = discord.Client()
 # Loads the bot token
-TOKEN = BOT_YAML['token']
+with open('token.txt', r) as file:
+    TOKEN = file.read()
 # Runs the bot
 N_RUS_BOT.run(TOKEN)
