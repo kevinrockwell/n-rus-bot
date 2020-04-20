@@ -31,8 +31,6 @@ class QuoteCog(commands.Cog):
             elif split[1] == '-' and first_match:
                 quote: str = ' '.join(split[2:])
                 author_id_str: str = first_match.group(1)
-        print(quote)
-        print(*map(bool, (first_match, last_match)))
         if len(split) < 3 or not quote:
             if all([first_match, last_match]) or not any([first_match, last_match]):
                 await ctx.send(f'{ctx.message.author.mention} Could not determine quote author')
@@ -43,17 +41,20 @@ class QuoteCog(commands.Cog):
             else:
                 quote: str = ' '.join(split[:-1])
                 author_id_str: str = last_match.group(1)
-        print(author_id_str)
-        await self.store_quote(ctx, int(author_id_str), quote)
+        embed = await self.store_quote(ctx, int(author_id_str), quote)
+        await ctx.send(f'<@!{author_id_str}>', embed=embed)
 
-    async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> None:
+    async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> discord.Embed:
         quote_object = {
             'time': ctx.message.created_at,
             'quoter_id': ctx.message.author.id,
-            'author_id': author_id ,
+            'author_id': author_id,
             'quote': quote
         }
-        await self.bot.db[str(ctx.guild.id)].insert_one(quote_object)
+        result = await self.bot.db[str(ctx.guild.id)].insert_one(quote_object)
+        e: discord.Embed = discord.Embed()
+        e.add_field(name='Quote Stored', value=f'```{quote}```- <@!{author_id}>')
+        return e
 
     @quote.command()
     async def add(self, ctx: commands.Context, author: discord.Member, *, text: str):
