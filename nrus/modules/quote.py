@@ -1,7 +1,7 @@
 import datetime
 import re
 import shlex
-from typing import Union
+from typing import Union, Tuple
 
 import discord
 from discord.ext import commands
@@ -52,7 +52,11 @@ class QuoteCog(commands.Cog):
             'author_id': author_id,
             'quote': quote
         }
-        await self.bot.db[str(ctx.guild.id)].insert_one(quote_object)
+        collection_name = str(ctx.guild.id)
+        if collection_name not in self.bot.indexed:
+            self.bot.db[collection_name].create_index({'quote': 'text'})
+            self.bot.indexed.append(collection_name)
+        await self.bot.db[collection_name].insert_one(quote_object)
         return self.create_quote_embed(quote, author_id)
 
     @quote.command()
@@ -72,6 +76,7 @@ class QuoteCog(commands.Cog):
         e: discord.Embed = discord.Embed()
         e.add_field(name=field_name, value=f'```{quote}```- <@!{author_id}>')
         return e
+
 
 def setup(bot: NRus):
     bot.add_cog(QuoteCog(bot))
