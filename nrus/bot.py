@@ -6,7 +6,8 @@ import discord.ext.commands as commands
 import motor.motor_asyncio as motor
 
 EXTENSIONS = [
-    'modules.misc'
+    'modules.settings',
+    'modules.quote'
 ]
 
 
