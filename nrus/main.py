@@ -1,7 +1,7 @@
 import json
 import logging
 
-import n_rus
+import bot
 
 # Set basic logging config
 logging.basicConfig(filename='../../discord.log', filemode='a', format='%(asctime)s %(message)s', level='ERROR')
@@ -11,6 +11,6 @@ logging.basicConfig(filename='../../discord.log', filemode='a', format='%(asctim
 with open('settings.json') as file:
     settings = json.load(file)
 
-bot = n_rus.NRus(settings)
+bot = bot.NRus(settings)
 # Runs the bot
 bot.run()
