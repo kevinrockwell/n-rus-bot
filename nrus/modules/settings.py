@@ -6,7 +6,7 @@ from discord.ext import commands
 from bot import NRus
 
 
-class Misc(commands.Cog):
+class SettingsCog(commands.Cog):
     def __init__(self, bot: NRus):
         self.bot = bot
 
@@ -20,12 +20,9 @@ class Misc(commands.Cog):
     @commands.command(aliases=['setprefix'])
     async def set_prefix(self, ctx: commands.Context, prefix: str):
         self.bot.guild_prefixes[ctx.guild.id] = prefix
-        # TODO: Fix once db is implemented
-        with open('prefixes.json', 'w') as f:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, json.dump, self.bot.guild_prefixes, f)
+        await self.bot.guild_settings.update_one({'id': ctx.guild.id}, {'$set': {'prefix': prefix}}, upsert=True)
         await ctx.send(f'Set prefix to {prefix}')
 
 
 def setup(bot: NRus) -> None:
-    bot.add_cog(Misc(bot))
+    bot.add_cog(SettingsCog(bot))
