@@ -1,6 +1,7 @@
 import datetime
 import re
 import shlex
+from typing import Union
 
 import discord
 from discord.ext import commands
@@ -51,10 +52,8 @@ class QuoteCog(commands.Cog):
             'author_id': author_id,
             'quote': quote
         }
-        result = await self.bot.db[str(ctx.guild.id)].insert_one(quote_object)
-        e: discord.Embed = discord.Embed()
-        e.add_field(name='Quote Stored', value=f'```{quote}```- <@!{author_id}>')
-        return e
+        await self.bot.db[str(ctx.guild.id)].insert_one(quote_object)
+        return self.create_quote_embed(quote, author_id)
 
     @quote.command()
     async def add(self, ctx: commands.Context, author: discord.Member, *, text: str):
@@ -68,6 +67,11 @@ class QuoteCog(commands.Cog):
     async def list_(self, ctx: commands.Context):
         await ctx.send('List not implemented yet :(')
 
+    @staticmethod
+    def create_quote_embed(quote: str, author_id: Union[int, str], field_name='Quote Stored:') -> discord.Embed:
+        e: discord.Embed = discord.Embed()
+        e.add_field(name=field_name, value=f'```{quote}```- <@!{author_id}>')
+        return e
 
 def setup(bot: NRus):
     bot.add_cog(QuoteCog(bot))
