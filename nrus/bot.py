@@ -34,6 +34,7 @@ class NRus(commands.Bot):
 
     async def on_guild_remove(self, guild: discord.Guild) -> None:
         await self.db.drop_collection(str(guild.id))
+        await self.db.guilds.remove_one({'id': guild.id})
 
     async def _get_prefixes(self) -> dict:
         prefixes = {}
