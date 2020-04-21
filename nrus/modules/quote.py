@@ -10,7 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorCursor
 
 from bot import NRus
 
-MENTION_PATTERN: Pattern = re.compile(r'<@!([0-9]+)>')
+MENTION_PATTERN: Pattern = re.compile(r'<@([0-9]+)>')
 
 
 class Quote(commands.Cog):
