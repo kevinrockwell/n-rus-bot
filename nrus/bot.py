@@ -26,7 +26,7 @@ class NRus(commands.Bot):
 
     async def on_ready(self) -> None:
         self.guild_prefixes = await self._get_prefixes()
-        self.indexed = await self.db.list_collection_names().remove('guilds')
+        self.indexed = await self.db.list_collection_names()
         print(f'Bot ready as {self.user}')
 
     def run(self):
