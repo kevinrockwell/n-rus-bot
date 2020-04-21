@@ -1,14 +1,14 @@
 import datetime
 import re
 import shlex
-from typing import Union, Tuple
+from typing import Union, Tuple, Match, Pattern, List
 
 import discord
 from discord.ext import commands
 
 from bot import NRus
 
-MENTION_PATTERN: re.Pattern = re.compile(r'<@!([0-9]+)>')
+MENTION_PATTERN: Pattern = re.compile(r'<@!([0-9]+)>')
 
 
 class QuoteCog(commands.Cog):
@@ -18,32 +18,13 @@ class QuoteCog(commands.Cog):
     @commands.group(aliases=['q'], invoke_without_command=True)
     async def quote(self, ctx: commands.Context, *, text: str) -> None:
         split = shlex.split(text)
-        if len(split) >= 2:
-            last_match: re.Match = MENTION_PATTERN.fullmatch(split[-1])
-            first_match: re.Match = MENTION_PATTERN.fullmatch(split[0])
-        else:
-            await ctx.send(f'{ctx.message.author.mention} Missing author or quote text')
+        author_result = self.get_author(split)
+        if isinstance(author_result, str):
+            await ctx.send(f'{ctx.message.author.mention} {author_result}')
             return
-        quote = ''
-        if len(split) >= 3:
-            if split[-2] == '-' and last_match:
-                quote: str = ' '.join(split[:-2])
-                author_id_str: str = last_match.group(1)
-            elif split[1] == '-' and first_match:
-                quote: str = ' '.join(split[2:])
-                author_id_str: str = first_match.group(1)
-        if len(split) < 3 or not quote:
-            if all([first_match, last_match]) or not any([first_match, last_match]):
-                await ctx.send(f'{ctx.message.author.mention} Could not determine quote author')
-                return
-            if first_match:
-                quote: str = ' '.join(split[1:])
-                author_id_str: str = first_match.group(1)
-            else:
-                quote: str = ' '.join(split[:-1])
-                author_id_str: str = last_match.group(1)
+        author_id_str, quote = author_result
         embed = await self.store_quote(ctx, int(author_id_str), quote)
-        await ctx.send(f'<@!{author_id_str}>', embed=embed)
+        await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
     async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> discord.Embed:
         quote_object = {
@@ -58,6 +39,28 @@ class QuoteCog(commands.Cog):
             self.bot.indexed.append(collection_name)
         await self.bot.db[collection_name].insert_one(quote_object)
         return self.create_quote_embed(quote, author_id)
+
+    @staticmethod
+    def get_author(split: List[str]) -> Union[str, Tuple[str, str]]:
+        if len(split) >= 2:
+            last_match: Match = MENTION_PATTERN.fullmatch(split[-1])
+            first_match: Match = MENTION_PATTERN.fullmatch(split[0])
+        else:
+            return 'Missing author or quote text'
+        if len(split) >= 3:
+            if split[-2] == '-' and last_match:
+                return last_match.group(1), ' '.join(split[:-2])
+            elif split[1] == '-' and first_match:
+                return first_match.group(1), ' '.join(split[2:])
+        if all([first_match, last_match]) or not any([first_match, last_match]):
+            return 'Could not determine quote author'
+        if first_match:
+            quote: str = ' '.join(split[1:])
+            author_id_str: str = first_match.group(1)
+        else:
+            quote: str = ' '.join(split[:-1])
+            author_id_str: str = last_match.group(1)
+        return author_id_str, quote
 
     @quote.command()
     async def add(self, ctx: commands.Context, author: discord.Member, *, text: str):
@@ -80,3 +83,4 @@ class QuoteCog(commands.Cog):
 
 def setup(bot: NRus):
     bot.add_cog(QuoteCog(bot))
+    print(f'{__name__} Loaded')
