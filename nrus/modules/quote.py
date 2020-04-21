@@ -1,7 +1,7 @@
 import datetime
 import re
 import shlex
-from typing import Union, Tuple, Match, Pattern, List
+from typing import Union, Tuple, Match, Pattern, List, Optional
 
 import discord
 from discord.ext import commands
@@ -75,10 +75,12 @@ class QuoteCog(commands.Cog):
         await ctx.send('List not implemented yet :(')
 
     @staticmethod
-    def create_quote_embed(quote: str, author_id: Union[int, str], field_name='Quote Stored:') -> discord.Embed:
-        e: discord.Embed = discord.Embed()
-        e.add_field(name=field_name, value=f'```{quote}```- <@!{author_id}>')
-        return e
+    def create_quote_embed(quote: dict, field_name='Quote Stored:', e: Optional[discord.Embed] = None) -> discord.Embed:
+        if e is None:
+            e: discord.Embed = discord.Embed()
+        attribution = f'- <@!{quote["author_id"]}>\nQuoted by <@!{quote["quoter_id"]}>'
+        e.add_field(name=field_name, value=f'```{quote["quote"]}```{attribution}')
+        return e  # TODO add check to see if embed is too long
 
 
 def setup(bot: NRus):
