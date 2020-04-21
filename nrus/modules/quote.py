@@ -1,6 +1,6 @@
 import re
 import shlex
-from typing import Union, Tuple, Match, Pattern, Optional
+from typing import Union, Tuple, Match, Pattern, Optional, List
 
 import discord
 from discord.ext import commands
@@ -15,6 +15,9 @@ MENTION_PATTERN: Pattern = re.compile(r'<@!([0-9]+)>')
 class Quote(commands.Cog):
     def __init__(self, bot: NRus):
         self.bot = bot
+
+    def cog_check(self, ctx):
+        return bool(ctx.guild)
 
     @commands.group(aliases=['q'], invoke_without_command=True)
     async def quote(self, ctx: commands.Context, *, text: str) -> None:
@@ -54,7 +57,7 @@ class Quote(commands.Cog):
         await self.quote(ctx, author, text=text)
 
     @quote.command(aliases=['s'])
-    async def search(self, ctx: commands.Context, *, text):
+    async def search(self, ctx: commands.Context, *, text):  # TODO just use *args lmao
         author_id_str = ''
         if isinstance(author := self.get_author(text), str):
             number, phrase = self.get_number_matches(text)
@@ -77,19 +80,45 @@ class Quote(commands.Cog):
             query, {'score': {'$meta': 'textScore'}}, limit=number)
         result.sort([('score', {'$meta': 'textScore'})])
         e = discord.Embed()
-        i = 1
+        i = 0
         async for quote in result:
-            e = self.create_quote_embed(quote, self.nth_number_str(i), e=e)
-            i += 1
+            e = self.create_quote_embed(quote, self.nth_number_str(i := i + 1), e=e)
         if number > 1:
             title = f'{ctx.author.mention} Best {number} matches for {phrase}:'
         else:
             title = f'{ctx.author.mention} Best matches for {phrase}:'
         await ctx.send(title, embed=e)
 
-    @quote.command(name='list')
-    async def list_(self, ctx: commands.Context):
-        await ctx.send('List not implemented yet :(')
+    @quote.command(name='list') # TODO make async enumerate
+    async def list_(self, ctx: commands.Context, *args):
+        n = 0
+        authors = []
+        for arg in args:
+            if arg.isdigit():
+                if n == 0:
+                    n = int(arg)
+                else:
+                    await ctx.send(f'{ctx.author.mention} Please supply only _one_ `number` argument.')
+                    return
+            else:
+                if match := MENTION_PATTERN.fullmatch(arg):
+                    authors.append(int(match.group(1)))
+        if n <= 0:
+            n = 1
+        elif n > 5:
+            await ctx.send(f'{ctx.author.mention} Sending > 5 quotes not permitted')
+            return
+        query = {}
+        if authors:
+            query.update({'author_id': {'$in': authors}})
+        results = self.bot.db[str(ctx.guild.id)].find(query, limit=n)
+        results.sort('time')
+        e = discord.Embed()
+        title = f'{ctx.author.mention} Most recent quote{"s" if n > 1 else ""}'
+        i = 0
+        async for quote in results:
+            self.create_quote_embed(quote, self.nth_number_str(i := i + 1), e)
+        await ctx.send(title, embed=e)
 
     async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> discord.Embed:
         quote_object = {
