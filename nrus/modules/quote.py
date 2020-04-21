@@ -26,20 +26,6 @@ class QuoteCog(commands.Cog):
         embed = await self.store_quote(ctx, int(author_id_str), quote)
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
-    async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> discord.Embed:
-        quote_object = {
-            'time': ctx.message.created_at,
-            'quoter_id': ctx.message.author.id,
-            'author_id': author_id,
-            'quote': quote
-        }
-        collection_name = str(ctx.guild.id)
-        if collection_name not in self.bot.indexed:
-            await self.bot.db[collection_name].create_index([('quote', pymongo.TEXT)])
-            self.bot.indexed.append(collection_name)
-        await self.bot.db[collection_name].insert_one(quote_object)
-        return self.create_quote_embed(quote_object)
-
     @staticmethod
     def get_author(text: str) -> Union[str, Tuple[str, str]]:
         split = shlex.split(text)
@@ -67,7 +53,7 @@ class QuoteCog(commands.Cog):
     async def add(self, ctx: commands.Context, author: discord.Member, *, text: str):
         await self.quote(ctx, author, text=text)
 
-    @quote.command()
+    @quote.command(aliases=['s'])
     async def search(self, ctx: commands.Context, *, text):
         author_id_str = ''
         if isinstance(author := self.get_author(text), str):
@@ -104,6 +90,20 @@ class QuoteCog(commands.Cog):
     @quote.command(name='list')
     async def list_(self, ctx: commands.Context):
         await ctx.send('List not implemented yet :(')
+
+    async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> discord.Embed:
+        quote_object = {
+            'time': ctx.message.created_at,
+            'quoter_id': ctx.message.author.id,
+            'author_id': author_id,
+            'quote': quote
+        }
+        collection_name = str(ctx.guild.id)
+        if collection_name not in self.bot.indexed:
+            await self.bot.db[collection_name].create_index([('quote', pymongo.TEXT)])
+            self.bot.indexed.append(collection_name)
+        await self.bot.db[collection_name].insert_one(quote_object)
+        return self.create_quote_embed(quote_object)
 
     @staticmethod
     def get_number_matches(text: str) -> Tuple[int, str]:
