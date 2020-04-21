@@ -128,11 +128,22 @@ class Quote(commands.Cog):
         await ctx.send(title, embed=e)
 
     @commands.check_any(commands.has_permissions(administrator=True),
-                        commands.has_permissions(manage_messanges=True),
+                        commands.has_permissions(manage_messages=True),
                         commands.has_role(699765480566554645))
     @quote.command()
     async def delete(self, ctx: commands.Context):
         await ctx.send(f"{ctx.author.mention} Sorry haven't implemented that yet :(")
+
+    @quote.command()
+    async def random(self, ctx, author: Optional[discord.Member] = None):
+        pipeline = []
+        if author:
+            pipeline.append({'$match': {'author_id': author.id}})
+        pipeline.append({'$sample': {'size': 1}})
+        result = self.bot.db[str(ctx.guild.id)].aggregate(pipeline)
+        quote_ = await result.to_list(1)
+        e = self.create_quote_embed(quote_[0], f'{ctx.author.mention} Random Quote:')
+        await ctx.send(embed=e)
 
     async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> discord.Embed:
         quote_object = {
