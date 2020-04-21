@@ -135,15 +135,23 @@ class Quote(commands.Cog):
         await ctx.send(f"{ctx.author.mention} Sorry haven't implemented that yet :(")
 
     @quote.command()
-    async def random(self, ctx, author: Optional[discord.Member] = None):
+    async def random(self, ctx, author: Optional[discord.Member] = None) -> None:
         pipeline = []
         if author:
             pipeline.append({'$match': {'author_id': author.id}})
         pipeline.append({'$sample': {'size': 1}})
         result = self.bot.db[str(ctx.guild.id)].aggregate(pipeline)
         quote_ = await result.to_list(1)
-        e = self.create_quote_embed(quote_[0], f'{ctx.author.mention} Random Quote:')
-        await ctx.send(embed=e)
+        e = self.create_quote_embed(quote_[0], 'Random Quote:')
+        await ctx.send(ctx.author.mention, embed=e)
+
+    @quote.command(aliases=['number', 'countquotes'])
+    async def count(self, ctx: commands.Context, author: Optional[discord.Member] = None) -> None:
+        query = {}
+        if author:
+            query['author_id'] = ctx.author.id
+        n = await self.bot.db[str(ctx.guild.id)].count_documents(query)
+        await ctx.send(f'{ctx.author.mention} there are {n} quotes stored{f"by {author.mention}" if author else ""}')
 
     async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> discord.Embed:
         quote_object = {
