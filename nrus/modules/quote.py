@@ -26,7 +26,6 @@ class Quote(commands.Cog):
         if payload.emoji.id == 702025625153568818:  # Trash Can
             delete_queue_key = (payload.user_id, payload.message_id)
 
-
     @commands.group(aliases=['q'], invoke_without_command=True)
     async def quote(self, ctx: commands.Context, *, text: str) -> None:
         author_result = self.get_author(text)
