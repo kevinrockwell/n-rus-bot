@@ -10,7 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorCursor
 
 from bot import NRus
 
-MENTION_PATTERN: Pattern = re.compile(r'<@([0-9]+)>')
+MENTION_PATTERN: Pattern = re.compile(r'<@!?([0-9]+)>')
 
 
 class Quote(commands.Cog):
@@ -210,7 +210,7 @@ class Quote(commands.Cog):
         if e is None:
             e: discord.Embed = discord.Embed()
         attribution = f'- <@!{quote["author_id"]}>\nQuoted by <@!{quote["quoter_id"]}>'
-        e.add_field(name=field_name, value=f'```{quote["quote"]}```{attribution}')
+        e.add_field(name=field_name, value=f'"{quote["quote"]}"\n{attribution}')
         return e  # TODO add check to see if embed is too long
 
 
