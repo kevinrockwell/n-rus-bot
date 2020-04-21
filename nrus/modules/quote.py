@@ -1,6 +1,7 @@
+import asyncio
 import re
 import shlex
-from typing import Union, Tuple, Match, Pattern, Optional, List
+from typing import Union, Tuple, Match, Pattern, Optional
 
 import discord
 from discord.ext import commands
@@ -15,9 +16,16 @@ MENTION_PATTERN: Pattern = re.compile(r'<@!([0-9]+)>')
 class Quote(commands.Cog):
     def __init__(self, bot: NRus):
         self.bot = bot
+        self.delete_queue = {}
 
     def cog_check(self, ctx):
         return bool(ctx.guild)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        if payload.emoji.id == 702025625153568818:  # Trash Can
+            delete_queue_key = (payload.user_id, payload.message_id)
+
 
     @commands.group(aliases=['q'], invoke_without_command=True)
     async def quote(self, ctx: commands.Context, *, text: str) -> None:
@@ -119,6 +127,13 @@ class Quote(commands.Cog):
         async for quote in results:
             self.create_quote_embed(quote, self.nth_number_str(i := i + 1), e)
         await ctx.send(title, embed=e)
+
+    @commands.check_any(commands.has_permissions(administrator=True),
+                        commands.has_permissions(manage_messanges=True),
+                        commands.has_role(699765480566554645))
+    @quote.command()
+    async def delete(self, ctx: commands.Context):
+        await ctx.send(f"{ctx.author.mention} Sorry haven't implemented that yet :(")
 
     async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> discord.Embed:
         quote_object = {
