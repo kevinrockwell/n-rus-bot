@@ -83,4 +83,3 @@ class QuoteCog(commands.Cog):
 
 def setup(bot: NRus):
     bot.add_cog(QuoteCog(bot))
-    print(f'{__name__} Loaded')

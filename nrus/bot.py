@@ -41,6 +41,18 @@ class NRus(commands.Bot):
             prefixes[guild['id']] = guild.get('prefix', ';')
         return prefixes
 
+    def load_extension(self, name):
+        super().load_extension(name)
+        print(f'Loaded {name}')
+
+    def unload_extension(self, name):
+        super().unload_extension(name)
+        print(f'Loaded {name}')
+
+    def reload_extension(self, name):
+        super().reload_extension(name)
+        print(f'Reloaded {name}')
+
 
 async def _get_prefix(bot: NRus, msg: discord.Message):
     prefix = bot.guild_prefixes.get(msg.guild.id, ';')
