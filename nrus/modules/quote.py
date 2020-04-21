@@ -21,10 +21,11 @@ class Quote(commands.Cog):
     def cog_check(self, ctx):
         return bool(ctx.guild)
 
-    @commands.Cog.listener()
+    @commands.Cog.listener('on_raw_reaction_add')
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        if payload.emoji.id == 702025625153568818:  # Trash Can
-            delete_queue_key = (payload.user_id, payload.message_id)
+        print('Reaction added')
+        if payload.emoji.name in ['⭐', '🌟']:
+            await self.quote_from_message(payload.message_id, payload.user_id)
 
     @commands.group(aliases=['q'], invoke_without_command=True)
     async def quote(self, ctx: commands.Context, *, text: str) -> None:
@@ -151,7 +152,16 @@ class Quote(commands.Cog):
         if author:
             query['author_id'] = ctx.author.id
         n = await self.bot.db[str(ctx.guild.id)].count_documents(query)
-        await ctx.send(f'{ctx.author.mention} there are {n} quotes stored{f"by {author.mention}" if author else ""}')
+        if n == 1:
+            response = f'{ctx.author.mention} there is 1 quote stored'
+        else:
+            response = f'{ctx.author.mention} there are {n} quotes stored'
+        if author:
+            response += f'by {author.mention}'
+        await ctx.send(response)
+
+    async def quote_from_message(self, message_id: int, user_id: int) -> None:
+        pass
 
     async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> discord.Embed:
         quote_object = {
