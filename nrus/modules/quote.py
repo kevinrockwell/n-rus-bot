@@ -12,7 +12,7 @@ from bot import NRus
 MENTION_PATTERN: Pattern = re.compile(r'<@!([0-9]+)>')
 
 
-class QuoteCog(commands.Cog):
+class Quote(commands.Cog):
     def __init__(self, bot: NRus):
         self.bot = bot
 
@@ -143,4 +143,4 @@ class QuoteCog(commands.Cog):
 
 
 def setup(bot: NRus):
-    bot.add_cog(QuoteCog(bot))
+    bot.add_cog(Quote(bot))
