@@ -104,7 +104,7 @@ class Quote(commands.Cog):
             title = f'{ctx.author.mention} Best matches for {phrase}:'
         await ctx.send(title, embed=e)
 
-    @quote.command(name='list') # TODO make async enumerate
+    @quote.command(name='list')  # TODO make async enumerate
     async def list_(self, ctx: commands.Context, *args):
         n = 0
         authors = []
@@ -127,7 +127,7 @@ class Quote(commands.Cog):
         if authors:
             query.update({'author_id': {'$in': authors}})
         results = self.bot.db[str(ctx.guild.id)].find(query, limit=n)
-        results.sort('time')
+        results.sort('time', pymongo.DESCENDING)
         e = discord.Embed()
         title = f'{ctx.author.mention} Most recent quote{"s" if n > 1 else ""}'
         i = 0
