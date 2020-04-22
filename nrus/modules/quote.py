@@ -178,15 +178,26 @@ class Quote(commands.Cog):
         if quote is None:
             quote = message.content
         quote_object = {
-            'time': message.created_at,
-            'quoter_id': quoter_id,
             'author_id': author_id,
             'quote': quote
+        }
+        non_quote_dependent = {
+            'time': message.created_at,
+            'quoter_id': quoter_id
         }
         collection_name = str(message.guild.id)
         if collection_name not in self.bot.indexed:
             await self.bot.db[collection_name].create_index([('quote', pymongo.TEXT)])
             self.bot.indexed.append(collection_name)
+            quote_object.update(non_quote_dependent)
+        else:
+            find_result = await self.bot.db[collection_name].find_one(quote_object)
+            quote_object.update(non_quote_dependent)
+            if find_result is not None: # TODO extract to separate check function for cleanness
+                e = discord.Embed()
+                e.add_field(name='title', value='Error:')
+                e.add_field(name='description', value='Quote Already Exists')
+                return self.create_quote_embed(quote_object, field_name='Quote:', e=e)
         await self.bot.db[collection_name].insert_one(quote_object)
         return self.create_quote_embed(quote_object)
 
