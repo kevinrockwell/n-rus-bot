@@ -17,14 +17,22 @@ class Quote(commands.Cog):
     def __init__(self, bot: NRus):
         self.bot = bot
         self.delete_queue = {}
+        self.star_reactions = ['⭐', '🌟']
 
     def cog_check(self, ctx):
         return bool(ctx.guild)
 
     @commands.Cog.listener('on_raw_reaction_add')
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        if payload.emoji.name in ['⭐', '🌟']:
-            await self.quote_from_message(payload.message_id, payload.channel_id, payload.user_id)
+        if payload.emoji.name in self.star_reactions:
+            channel = self.bot.get_channel(payload.channel_id)
+            message = await channel.fetch_message(payload.message_id)
+            star_count = 0
+            for reaction in message.reactions:
+                if reaction.emoji in self.star_reactions:
+                    star_count += reaction.count
+            if star_count == 1:
+                await self.quote_from_message(message, payload.user_id)
 
     @commands.group(aliases=['q'], invoke_without_command=True)
     async def quote(self, ctx: commands.Context, *, text: str) -> None:
@@ -159,9 +167,7 @@ class Quote(commands.Cog):
             response += f'by {author.mention}'
         await ctx.send(response)
 
-    async def quote_from_message(self, message_id: int, channel_id: int, quoter_id: int) -> None:
-        channel: discord.TextChannel = self.bot.get_channel(channel_id)
-        message: discord.Message = await channel.fetch_message(message_id)
+    async def quote_from_message(self, message: discord.Message, quoter_id: int) -> None:
         e = await self.store_quote(message, message.author.id, quoter_id=quoter_id)
         await message.channel.send(f'<@!{quoter_id}>', embed=e)
 
