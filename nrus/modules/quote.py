@@ -27,6 +27,8 @@ class Quote(commands.Cog):
         if payload.emoji.name in self.star_reactions:
             channel = self.bot.get_channel(payload.channel_id)
             message = await channel.fetch_message(payload.message_id)
+            if message.author.id == self.bot.user.id:
+                return
             star_count = 0
             for reaction in message.reactions:
                 if reaction.emoji in self.star_reactions:
