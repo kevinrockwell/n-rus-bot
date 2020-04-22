@@ -23,9 +23,8 @@ class Quote(commands.Cog):
 
     @commands.Cog.listener('on_raw_reaction_add')
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        print('Reaction added')
         if payload.emoji.name in ['⭐', '🌟']:
-            await self.quote_from_message(payload.message_id, payload.user_id)
+            await self.quote_from_message(payload.message_id, payload.channel_id, payload.user_id)
 
     @commands.group(aliases=['q'], invoke_without_command=True)
     async def quote(self, ctx: commands.Context, *, text: str) -> None:
@@ -34,7 +33,7 @@ class Quote(commands.Cog):
             await ctx.send(f'{ctx.message.author.mention} {author_result}')
             return
         author_id_str, quote = author_result
-        embed = await self.store_quote(ctx, int(author_id_str), quote)
+        embed = await self.store_quote(ctx.message, int(author_id_str), quote=quote)
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
     @staticmethod
@@ -160,17 +159,25 @@ class Quote(commands.Cog):
             response += f'by {author.mention}'
         await ctx.send(response)
 
-    async def quote_from_message(self, message_id: int, user_id: int) -> None:
-        pass
+    async def quote_from_message(self, message_id: int, channel_id: int, quoter_id: int) -> None:
+        channel: discord.TextChannel = self.bot.get_channel(channel_id)
+        message: discord.Message = await channel.fetch_message(message_id)
+        e = await self.store_quote(message, message.author.id, quoter_id=quoter_id)
+        await message.channel.send(f'<@!{quoter_id}>', embed=e)
 
-    async def store_quote(self, ctx: commands.Context, author_id: int, quote: str) -> discord.Embed:
+    async def store_quote(self, message: discord.Message, author_id: int, quote: Optional[str] = None,
+                          quoter_id: Optional[int] = None) -> discord.Embed:
+        if quoter_id is None:
+            quoter_id = message.author.id
+        if quote is None:
+            quote = message.content
         quote_object = {
-            'time': ctx.message.created_at,
-            'quoter_id': ctx.message.author.id,
+            'time': message.created_at,
+            'quoter_id': quoter_id,
             'author_id': author_id,
             'quote': quote
         }
-        collection_name = str(ctx.guild.id)
+        collection_name = str(message.guild.id)
         if collection_name not in self.bot.indexed:
             await self.bot.db[collection_name].create_index([('quote', pymongo.TEXT)])
             self.bot.indexed.append(collection_name)
