@@ -220,11 +220,13 @@ class Quote(commands.Cog):
 
     @staticmethod
     def nth_number_str(n: int) -> str:
-        str_n = str(n)
-        if str_n.endswith('1'):
+        last_n = str(n)[-1]
+        if last_n == '1':
             return f'{n}st'
-        elif str_n.endswith('2'):
+        elif last_n == '2':
             return f'{n}nd'
+        elif last_n == '3':
+            return f'{n}rd'
         else:
             return f'{n}th'
 
