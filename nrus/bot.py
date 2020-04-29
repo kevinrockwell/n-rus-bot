@@ -17,7 +17,10 @@ class NRus(commands.Bot):
         super().__init__(command_prefix=_get_prefix)
         self.settings = settings
         self.start_time = time.time()
-        self.db: motor.AsyncIOMotorDatabase = motor.AsyncIOMotorClient().NRus
+        if self.settings['release'] == 'production':
+            self.db: motor.AsyncIOMotorDatabase = motor.AsyncIOMotorClient().NRus
+        else:
+            self.db: motor.AsyncIOMotorCollection = motor.AsyncIOMotorClient().NRusTesting
         self.guild_settings: motor.AsyncIOMotorCollection = self.db.guilds
         self.guild_prefixes: dict = {}
         self.indexed: list = []
