@@ -37,7 +37,7 @@ class Quote(commands.Cog):
                 await self.quote_from_message(message, payload.user_id)
 
     @commands.group(aliases=['q'], invoke_without_command=True)
-    async def quote(self, ctx: commands.Context, *, text: str) -> None:
+    async def quote(self, ctx: commands.Context, *text) -> None:
         author_result = self.get_author(text)
         if isinstance(author_result, str):
             await ctx.send(f'{ctx.message.author.mention} {author_result}')
@@ -47,25 +47,25 @@ class Quote(commands.Cog):
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
     @staticmethod
-    def get_author(text: str) -> Union[str, Tuple[str, str]]:
-        split = shlex.split(text)
-        if len(split) >= 2:
-            last_match: Match = MENTION_PATTERN.fullmatch(split[-1])
-            first_match: Match = MENTION_PATTERN.fullmatch(split[0])
+    def get_author(text: tuple) -> Union[str, Tuple[str, str]]:
+        print(text)
+        if len(text) >= 2:
+            last_match: Match = MENTION_PATTERN.fullmatch(text[-1])
+            first_match: Match = MENTION_PATTERN.fullmatch(text[0])
         else:
             return 'Missing author or quote text'
-        if len(split) >= 3:
-            if split[-2] == '-' and last_match:
-                return last_match.group(1), shlex.join(split[:-2])
-            elif split[1] == '-' and first_match:
-                return first_match.group(1), shlex.join(split[2:])
+        if len(text) >= 3:
+            if text[-2] == '-' and last_match:
+                return last_match.group(1), ' '.join(text[:-2])
+            elif text[1] == '-' and first_match:
+                return first_match.group(1), ' '.join(text[2:])
         if all([first_match, last_match]) or not any([first_match, last_match]):
             return 'Could not determine quote author'
         if first_match:
-            quote: str = shlex.join(split[1:])
+            quote: str = ' '.join(text[1:])
             author_id_str: str = first_match.group(1)
         else:
-            quote: str = shlex.join(split[:-1])
+            quote: str = ' '.join(text[:-1])
             author_id_str: str = last_match.group(1)
         return author_id_str, quote
 
@@ -74,7 +74,9 @@ class Quote(commands.Cog):
         await self.quote(ctx, author, text=text)
 
     @quote.command(aliases=['s'])
-    async def search(self, ctx: commands.Context, *, text):  # TODO just use *args lmao
+    async def search(self, ctx: commands.Context, *text):
+        if len(text) < 1 or len(text) == 1 and MENTION_PATTERN.search(text[0]):
+            await ctx.send('No search phrase provided')
         author_id_str = ''
         if isinstance(author := self.get_author(text), str):
             number, phrase = self.get_number_matches(text)
@@ -144,7 +146,7 @@ class Quote(commands.Cog):
     async def delete(self, ctx: commands.Context):
         await ctx.send(f"{ctx.author.mention} Sorry haven't implemented that yet :(")
 
-    @quote.command()
+    @quote.command(aliases=['r'])
     async def random(self, ctx, author: Optional[discord.Member] = None) -> None:
         pipeline = []
         if author:
@@ -159,14 +161,14 @@ class Quote(commands.Cog):
     async def count(self, ctx: commands.Context, author: Optional[discord.Member] = None) -> None:
         query = {}
         if author:
-            query['author_id'] = ctx.author.id
+            query['author_id'] = author.id
         n = await self.bot.db[str(ctx.guild.id)].count_documents(query)
         if n == 1:
             response = f'{ctx.author.mention} there is 1 quote stored'
         else:
             response = f'{ctx.author.mention} there are {n} quotes stored'
         if author:
-            response += f'by {author.mention}'
+            response += f' by {author.mention}'
         await ctx.send(response)
 
     async def quote_from_message(self, message: discord.Message, quoter_id: int) -> None:
@@ -204,17 +206,16 @@ class Quote(commands.Cog):
         return self.create_quote_embed(quote_object)
 
     @staticmethod
-    def get_number_matches(text: str) -> Tuple[int, str]:
-        split = shlex.split(text)
-        if len(split) < 2:
+    def get_number_matches(text: tuple) -> Tuple[int, str]:
+        if len(text) < 2:
             number = 1
             phrase = text
-        elif split[-1].isdigit():
-            number = int(split[-1])
-            phrase = shlex.join(split[:-1])
-        elif split[0].isdigit():
-            number = int(split[0])
-            phrase = shlex.join(split[0:])
+        elif text[-1].isdigit():
+            number = int(text[-1])
+            phrase = ' '.join(text[:-1])
+        elif text[0].isdigit():
+            number = int(text[0])
+            phrase = ' '.join(text[0:])
         else:
             number = 1
             phrase = text
