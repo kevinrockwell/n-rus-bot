@@ -1,5 +1,5 @@
 import re
-from typing import Union, Tuple, Match, Pattern, Optional, Set
+from typing import Union, Tuple, Match, Pattern, Optional, Set, Dict, Any
 
 import discord
 from discord.ext import commands
@@ -37,15 +37,15 @@ class Quote(commands.Cog):
     @commands.group(aliases=['q'], invoke_without_command=True)
     async def quote(self, ctx: commands.Context, *, text) -> None:
         author_result = self.get_authors(text)
-        if isinstance(author_result, str):
-            await ctx.send(f'{ctx.message.author.mention} {author_result}')
+        if author_result is None:
+            await ctx.send(f'{ctx.message.author.mention} No authors were found :(')
             return
-        author_id_str, quote = author_result
-        embed = await self.store_quote(ctx.message, int(author_id_str), quote=' '.join(quote))
+        author_ids, quote = author_result
+        embed = await self.store_quote(ctx.message, author_ids, quote=' '.join(quote))
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
     @staticmethod
-    def get_authors(text: str) -> Union[None, Tuple[Set[str], str]]:
+    def get_authors(text: str) -> Union[None, Tuple[Tuple[int], str]]:
         pattern: Pattern = re.compile(r'( <@!?[0-9]+>)+$')
         int_pattern: Pattern = re.compile(r'[0-9]]')
         match: Match = pattern.search(text)
@@ -54,14 +54,14 @@ class Quote(commands.Cog):
         start = match.start()
         text, authors = text[:start], text[start:]
         author_ids: Set = set(int_pattern.findall(authors))
-        return author_ids, text
+        return tuple(map(int, author_ids)), text
 
     @quote.command()
     async def add(self, ctx: commands.Context, author: discord.Member, *, text: str):
         await self.quote(ctx, author, text=text)
 
     @quote.command(aliases=['s'])
-    async def search(self, ctx: commands.Context, *text):
+    async def search(self, ctx: commands.Context, *, text: str):
         if len(text) < 1 or len(text) == 1 and MENTION_PATTERN.search(text[0]):
             await ctx.send('No search phrase provided')
         author_id_str = ''
@@ -167,35 +167,47 @@ class Quote(commands.Cog):
         e = await self.store_quote(message, message.author.id, quoter_id=quoter_id)
         await message.channel.send(f'<@!{quoter_id}>', embed=e)
 
-    async def store_quote(self, message: discord.Message, author_id: int, quote: Optional[str] = None,
+    async def store_quote(self, message: discord.Message, author_ids: Tuple[int], quote: Optional[str] = None,
                           quoter_id: Optional[int] = None) -> discord.Embed:
-        if quoter_id is None:
-            quoter_id = message.author.id
-        if quote is None:
-            quote = message.content
         quote_object = {
-            'author_id': author_id,
-            'quote': quote
-        }
-        non_quote_dependent = {
+            'author_id': author_ids,
+            'quote': quote,
             'time': message.created_at,
             'quoter_id': quoter_id
         }
+        if quoter_id is None:
+            quote_object['quoter_id'] = message.author.id
+        if quote is None:
+            quote_object['quote'] = message.content
         collection_name = str(message.guild.id)
         if collection_name not in self.bot.indexed:
             await self.bot.db[collection_name].create_index([('quote', pymongo.TEXT)])
             self.bot.indexed.append(collection_name)
-            quote_object.update(non_quote_dependent)
         else:
-            find_result = await self.bot.db[collection_name].find_one(quote_object)
-            quote_object.update(non_quote_dependent)
-            if find_result is not None:  # TODO extract to separate check function for cleanness
+            query = self.create_quote_query(quote_object, ignore=['time', 'quoter_id'])
+            find_result = await self.bot.db[collection_name].find_one(query)
+            if find_result is not None:
                 e = discord.Embed()
-                e.add_field(name='title', value='Error:')
-                e.add_field(name='description', value='Quote Already Exists')
+                e.add_field(name='Error:', value='Quote Already Exists', inline=False)
                 return self.create_quote_embed(quote_object, field_name='Quote:', e=e)
         await self.bot.db[collection_name].insert_one(quote_object)
         return self.create_quote_embed(quote_object)
+
+    @staticmethod
+    def create_quote_query(query: Dict[str, Any], author_type='and', ignore=[]):
+        if author_type not in ['and', 'or']:
+            raise ValueError('Author Type must equal "and" or "or"')
+        out_query = {}
+        authors: Tuple = query.pop('author_id', ())
+        if authors:
+            if author_type == 'and':
+                out_query['author_id'] = {'$all': authors}
+            else:
+                out_query['$or'] = [{'author_id': a} for a in authors]
+        for key, value in query:
+            if key not in ignore:
+                out_query[key] = value
+        return out_query
 
     @staticmethod
     def get_number_matches(text: Tuple) -> Tuple[int, Tuple[str]]:
