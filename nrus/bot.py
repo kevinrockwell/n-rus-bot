@@ -1,4 +1,5 @@
 import json
+import os
 import time
 
 import discord
@@ -7,10 +8,13 @@ import motor.motor_asyncio as motor
 
 
 class NRus(commands.Bot):
+
+    base_directory = os.path.join(*os.path.split(__file__)[:-1])
+
     def __init__(self, settings):
         super().__init__(command_prefix=_get_prefix)
         self.settings = settings
-        self.extension_file = 'extensions.json'
+        self.extension_file = os.path.join(self.base_directory, 'extensions.json')
         self.start_time = time.time()
         if self.settings['release'] == 'production':
             self.db: motor.AsyncIOMotorDatabase = motor.AsyncIOMotorClient().NRus
