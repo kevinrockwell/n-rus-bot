@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 
 import bot
 
@@ -8,7 +9,7 @@ logging.basicConfig(filename='../../discord.log', filemode='a', format='%(asctim
 
 
 # Loads the bot token
-with open('settings.json') as file:
+with open(sys.argv[1]) as file:
     settings = json.load(file)
 
 bot = bot.NRus(settings)
