@@ -13,6 +13,7 @@ class NRus(commands.Bot):
 
     def __init__(self, settings):
         super().__init__(command_prefix=_get_prefix)
+        os.chdir(self.base_directory)
         self.settings = settings
         self.extension_file = os.path.join(self.base_directory, 'extensions.json')
         self.start_time = time.time()
