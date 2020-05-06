@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import subprocess
 
 import discord
@@ -43,9 +44,9 @@ class Admin(commands.Cog):
         text = text.strip('```python').strip('`').split('\n')
         out = ['async def f():']
         for line in text:
-            out.append('\t'+line)
+            out.append('\t' + line)
         vars_ = {'bot': self.bot, 'ctx': ctx}
-        vars_ .update(globals())
+        vars_.update(globals())
         try:
             exec("\n".join(out), vars_)
             f = vars_['f']
@@ -58,11 +59,24 @@ class Admin(commands.Cog):
 
     @commands.command(name='gitreload', hidden=True)
     async def git_reload(self, ctx: commands.Context):
+        await ctx.send('Checking out from git...')
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, subprocess.run,
-                                   ['git', 'pull', 'origin', 'master'])
-        self.bot.reload_extensions()
-        
-    
+        run = functools.partial(subprocess.run, ['git', 'pull', 'origin', 'master'],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output: subprocess.CompletedProcess = await loop.run_in_executor(None, run)
+        e = discord.Embed()
+        e.add_field(name='Git output', value=output.stdout.decode())
+        e.add_field(name='Git stderr', value=output.stderr.decode())
+        await ctx.send('Checkout Complete.', embed=e)
+        if output.check_returncode():
+            await ctx.send('Reloading extensions...')
+            try:
+                self.bot.reload_extensions()
+            except Exception as e:
+                await ctx.send(f'Error loading extensions: {e.__class__.__name__}: {e}')
+        else:
+            await ctx.send('Git checkout failed, not reloading extensions')
+
+
 def setup(bot: NRus):
     bot.add_cog(Admin(bot))
