@@ -1,6 +1,4 @@
-import asyncio
 import re
-import shlex
 from typing import Union, Tuple, Match, Pattern, Optional
 
 import discord
@@ -43,12 +41,11 @@ class Quote(commands.Cog):
             await ctx.send(f'{ctx.message.author.mention} {author_result}')
             return
         author_id_str, quote = author_result
-        embed = await self.store_quote(ctx.message, int(author_id_str), quote=quote)
+        embed = await self.store_quote(ctx.message, int(author_id_str), quote=' '.join(quote))
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
     @staticmethod
-    def get_author(text: tuple) -> Union[str, Tuple[str, str]]:
-        print(text)
+    def get_author(text: Tuple) -> Union[str, Tuple[str, Tuple[str]]]:
         if len(text) >= 2:
             last_match: Match = MENTION_PATTERN.fullmatch(text[-1])
             first_match: Match = MENTION_PATTERN.fullmatch(text[0])
@@ -56,16 +53,16 @@ class Quote(commands.Cog):
             return 'Missing author or quote text'
         if len(text) >= 3:
             if text[-2] == '-' and last_match:
-                return last_match.group(1), ' '.join(text[:-2])
+                return last_match.group(1), text[:-2]
             elif text[1] == '-' and first_match:
-                return first_match.group(1), ' '.join(text[2:])
+                return first_match.group(1), text[2:]
         if all([first_match, last_match]) or not any([first_match, last_match]):
             return 'Could not determine quote author'
         if first_match:
-            quote: str = ' '.join(text[1:])
+            quote = text[1:]
             author_id_str: str = first_match.group(1)
         else:
-            quote: str = ' '.join(text[:-1])
+            quote = text[:-1]
             author_id_str: str = last_match.group(1)
         return author_id_str, quote
 
@@ -78,7 +75,8 @@ class Quote(commands.Cog):
         if len(text) < 1 or len(text) == 1 and MENTION_PATTERN.search(text[0]):
             await ctx.send('No search phrase provided')
         author_id_str = ''
-        if isinstance(author := self.get_author(text), str):
+        author = self.get_author(text)
+        if isinstance(author, str):
             number, phrase = self.get_number_matches(text)
             author = self.get_author(phrase)
             if not isinstance(author, str):
@@ -92,6 +90,7 @@ class Quote(commands.Cog):
         elif number < 1:
             await ctx.send(f'{ctx.message.author.mention} Cannot send less than 1 quote')
             return
+        phrase = ' '.join(phrase)
         query = {'$text': {'$search': phrase}}
         if author_id_str:
             query.update({'author_id': int(author_id_str)})
@@ -99,9 +98,10 @@ class Quote(commands.Cog):
             query, {'score': {'$meta': 'textScore'}}, limit=number)
         result.sort([('score', {'$meta': 'textScore'})])
         e = discord.Embed()
-        i = 0
+        i = 1
         async for quote in result:
-            e = self.create_quote_embed(quote, self.nth_number_str(i := i + 1), e=e)
+            e = self.create_quote_embed(quote, self.nth_number_str(i), e=e)
+            i += 1
         if number > 1:
             title = f'{ctx.author.mention} Best {number} matches for {phrase}:'
         else:
@@ -120,7 +120,8 @@ class Quote(commands.Cog):
                     await ctx.send(f'{ctx.author.mention} Please supply only _one_ `number` argument.')
                     return
             else:
-                if match := MENTION_PATTERN.fullmatch(arg):
+                match = MENTION_PATTERN.fullmatch(arg)
+                if match:
                     authors.append(int(match.group(1)))
         if n <= 0:
             n = 1
@@ -134,9 +135,10 @@ class Quote(commands.Cog):
         results.sort('time', pymongo.DESCENDING)
         e = discord.Embed()
         title = f'{ctx.author.mention} Most recent quote{"s" if n > 1 else ""}'
-        i = 0
+        i = 1
         async for quote in results:
-            self.create_quote_embed(quote, self.nth_number_str(i := i + 1), e)
+            self.create_quote_embed(quote, self.nth_number_str(i), e)
+            i += 1
         await ctx.send(title, embed=e)
 
     @commands.check_any(commands.has_permissions(administrator=True),
@@ -197,7 +199,7 @@ class Quote(commands.Cog):
         else:
             find_result = await self.bot.db[collection_name].find_one(quote_object)
             quote_object.update(non_quote_dependent)
-            if find_result is not None: # TODO extract to separate check function for cleanness
+            if find_result is not None:  # TODO extract to separate check function for cleanness
                 e = discord.Embed()
                 e.add_field(name='title', value='Error:')
                 e.add_field(name='description', value='Quote Already Exists')
@@ -206,16 +208,16 @@ class Quote(commands.Cog):
         return self.create_quote_embed(quote_object)
 
     @staticmethod
-    def get_number_matches(text: tuple) -> Tuple[int, str]:
+    def get_number_matches(text: Tuple) -> Tuple[int, Tuple[str]]:
         if len(text) < 2:
             number = 1
             phrase = text
         elif text[-1].isdigit():
             number = int(text[-1])
-            phrase = ' '.join(text[:-1])
+            phrase = text[:-1]
         elif text[0].isdigit():
             number = int(text[0])
-            phrase = ' '.join(text[0:])
+            phrase = text[0:]
         else:
             number = 1
             phrase = text
