@@ -1,5 +1,5 @@
 import re
-from typing import Union, Tuple, Match, Pattern, Optional
+from typing import Union, Tuple, Match, Pattern, Optional, Set
 
 import discord
 from discord.ext import commands
@@ -35,8 +35,8 @@ class Quote(commands.Cog):
                 await self.quote_from_message(message, payload.user_id)
 
     @commands.group(aliases=['q'], invoke_without_command=True)
-    async def quote(self, ctx: commands.Context, *text) -> None:
-        author_result = self.get_author(text)
+    async def quote(self, ctx: commands.Context, *, text) -> None:
+        author_result = self.get_authors(text)
         if isinstance(author_result, str):
             await ctx.send(f'{ctx.message.author.mention} {author_result}')
             return
@@ -45,26 +45,16 @@ class Quote(commands.Cog):
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
     @staticmethod
-    def get_author(text: Tuple) -> Union[str, Tuple[str, Tuple[str]]]:
-        if len(text) >= 2:
-            last_match: Match = MENTION_PATTERN.fullmatch(text[-1])
-            first_match: Match = MENTION_PATTERN.fullmatch(text[0])
-        else:
-            return 'Missing author or quote text'
-        if len(text) >= 3:
-            if text[-2] == '-' and last_match:
-                return last_match.group(1), text[:-2]
-            elif text[1] == '-' and first_match:
-                return first_match.group(1), text[2:]
-        if all([first_match, last_match]) or not any([first_match, last_match]):
-            return 'Could not determine quote author'
-        if first_match:
-            quote = text[1:]
-            author_id_str: str = first_match.group(1)
-        else:
-            quote = text[:-1]
-            author_id_str: str = last_match.group(1)
-        return author_id_str, quote
+    def get_authors(text: str) -> Union[None, Tuple[Set[str], str]]:
+        pattern: Pattern = re.compile(r'( <@!?[0-9]+>)+$')
+        int_pattern: Pattern = re.compile(r'[0-9]]')
+        match: Match = pattern.search(text)
+        if not match:
+            return None
+        start = match.start()
+        text, authors = text[:start], text[start:]
+        author_ids: Set = set(int_pattern.findall(authors))
+        return author_ids, text
 
     @quote.command()
     async def add(self, ctx: commands.Context, author: discord.Member, *, text: str):
@@ -75,10 +65,10 @@ class Quote(commands.Cog):
         if len(text) < 1 or len(text) == 1 and MENTION_PATTERN.search(text[0]):
             await ctx.send('No search phrase provided')
         author_id_str = ''
-        author = self.get_author(text)
+        author = self.get_authors(text)
         if isinstance(author, str):
             number, phrase = self.get_number_matches(text)
-            author = self.get_author(phrase)
+            author = self.get_authors(phrase)
             if not isinstance(author, str):
                 author_id_str, phrase = author
         else:
