@@ -1,20 +1,16 @@
+import json
 import time
 
 import discord
 import discord.ext.commands as commands
 import motor.motor_asyncio as motor
 
-EXTENSIONS = [
-    'modules.settings',
-    'modules.quote',
-    'modules.admin'
-]
-
 
 class NRus(commands.Bot):
     def __init__(self, settings):
         super().__init__(command_prefix=_get_prefix)
         self.settings = settings
+        self.extension_file = 'extensions.json'
         self.start_time = time.time()
         if self.settings['release'] == 'production':
             self.db: motor.AsyncIOMotorDatabase = motor.AsyncIOMotorClient().NRus
@@ -23,8 +19,7 @@ class NRus(commands.Bot):
         self.guild_settings: motor.AsyncIOMotorCollection = self.db.guilds
         self.guild_prefixes: dict = {}
         self.indexed: list = []
-        for ext in EXTENSIONS:
-            self.load_extension(ext)
+        self.load_extensions()
 
     async def on_ready(self) -> None:
         self.guild_prefixes = await self._get_prefixes()
@@ -44,6 +39,21 @@ class NRus(commands.Bot):
             prefixes[guild['id']] = guild.get('prefix', ';')
         return prefixes
 
+    def load_extensions(self):
+        with open(self.extension_file) as f:
+            extensions = json.load(f)
+        for extension in extensions:
+            self.load_extension(extension)
+
+    def unload_extensions(self):
+        extensions = list(self.extensions.keys())
+        for extension in extensions:
+            self.unload_extension(extension)
+
+    def reload_extensions(self):
+        self.unload_extensions()
+        self.load_extensions()
+    
     def load_extension(self, name):
         super().load_extension(name)
         print(f'Loaded {name}')

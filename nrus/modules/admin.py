@@ -1,3 +1,6 @@
+import asyncio
+import subprocess
+
 import discord
 from discord.ext import commands
 
@@ -53,6 +56,13 @@ class Admin(commands.Cog):
         if result is not None:
             await ctx.send(result)
 
-
+    @commands.command(name='gitreload', hidden=True)
+    async def git_reload(self, ctx: commands.Context):
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, subprocess.run,
+                                   ['git', 'pull', 'origin', 'master'])
+        self.bot.reload_extensions()
+        
+    
 def setup(bot: NRus):
     bot.add_cog(Admin(bot))
