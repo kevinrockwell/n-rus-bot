@@ -65,9 +65,14 @@ class Admin(commands.Cog):
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output: subprocess.CompletedProcess = await loop.run_in_executor(None, run)
         e = discord.Embed()
-        e.add_field(name='Git output', value=output.stdout.decode())
-        e.add_field(name='Git stderr', value=output.stderr.decode())
-        await ctx.send('Checkout Complete.', embed=e)
+        if output.stdout:
+            e.add_field(name='Git output', value=output.stdout.decode())
+        if output.stderr:
+            e.add_field(name='Git stderr', value=output.stderr.decode())
+        if len(e):
+            await ctx.send('Checkout Complete.', embed=e)
+        else:
+            await ctx.send('No git output...')
         if output.check_returncode():
             await ctx.send('Reloading extensions...')
             try:
