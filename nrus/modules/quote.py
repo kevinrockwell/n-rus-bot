@@ -55,13 +55,13 @@ class Quote(commands.Cog):
     async def search(self, ctx: commands.Context, *, text: str):
         number, text = self.get_number_matches(text.strip())
         authors, phrase = self.get_authors(text.strip())
-        if number > 6:  # TODO Make this configurable on a guild by guild basis
+        if number is None:
+            number = 6  # Set to default if not amount specified
+        elif number > 6:  # TODO Make this configurable on a guild by guild basis
             await ctx.send(f'{ctx.message.author.mention} Sending > 6 quotes from a search not permitted.')
             return
-        elif number is None:
-            number = 6
         elif number < 1:
-            await ctx.send('Cannot send less than 1 quote.')
+            await ctx.send(f'{ctx.message.author.mention} Cannot send less than 1 quote.')
         query = {'$text': {'$search': phrase}}
         if authors:
             query.update({'author_id': authors})
@@ -85,11 +85,13 @@ class Quote(commands.Cog):
     async def list_(self, ctx: commands.Context, *, text: Optional[str] = None):
         if text:
             n, authors = self.get_number_and_authors(text)
+            if n is None:
+                n = 6  # Set to default if no amount given
             if n > 6:
                 await ctx.send(f'{ctx.author.mention} Sending > 6 quotes not permitted')
                 return
             elif n < 1:
-                n = 6  # Set to default if amount is unreasonable
+                await ctx.send(f'{ctx.author.mention} Cannot send < 1 quote')
         else:
             n = 6
             authors = None
