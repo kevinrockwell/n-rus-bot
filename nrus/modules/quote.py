@@ -244,11 +244,12 @@ class Quote(commands.Cog):
         conversion_dict = {'1': 'st', '2': 'nd', '3': 'rd'}
         return f'{n}{conversion_dict.get(last_n, "th")}'
 
-    def create_quote_embed(self, quote: dict, field_name: Optional[str] = 'Quote Stored:',
+    @classmethod
+    def create_quote_embed(cls, quote: dict, field_name: Optional[str] = 'Quote Stored:',
                            e: Optional[discord.Embed] = None) -> discord.Embed:
         if e is None:
             e: discord.Embed = discord.Embed()
-        attribution = f'- {self.get_attribution_str(quote["author_id"])}\nQuoted by <@!{quote["quoter_id"]}>'
+        attribution = f'- {cls.get_attribution_str(quote["author_id"])}\nQuoted by <@!{quote["quoter_id"]}>'
         e.add_field(name=field_name, value=f'"{quote["quote"]}"\n{attribution}')
         return e  # TODO add check to see if embed is too long
 
