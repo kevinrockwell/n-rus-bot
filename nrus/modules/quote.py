@@ -115,7 +115,7 @@ class Quote(commands.Cog):
     @quote.command(aliases=['r'])
     async def random(self, ctx, *author: Optional[discord.Member]) -> None:
         pipeline = []
-        if author is not None:
+        if author:
             pipeline.append({'$match': {'author_id': {'$all': [*map(lambda a: a.id, author)]}}})
         pipeline.append({'$sample': {'size': 1}})
         result = self.bot.db[str(ctx.guild.id)].aggregate(pipeline)
