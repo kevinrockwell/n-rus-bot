@@ -45,18 +45,6 @@ class Quote(commands.Cog):
         embed = await self.store_quote(ctx.message, author_ids, quote=' '.join(quote))
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
-    @staticmethod
-    def get_authors(text: str) -> Union[None, Tuple[Tuple[int], str]]:
-        pattern: Pattern = re.compile(r'( ?<@!?[0-9]+>)+$')
-        int_pattern: Pattern = re.compile(r'[0-9]]')
-        match: Match = pattern.search(text)
-        if not match:
-            return None
-        start = match.start()
-        text, authors = text[:start], text[start:]
-        author_ids: Set = set(int_pattern.findall(authors))
-        return tuple(map(int, author_ids)), text
-
     @quote.command()
     async def add(self, ctx: commands.Context, author: discord.Member, *, text: str):
         await self.quote(ctx, author, text=text)
@@ -128,7 +116,7 @@ class Quote(commands.Cog):
         await ctx.send(f"{ctx.author.mention} Sorry haven't implemented that yet :(")
 
     @quote.command(aliases=['r'])
-    async def random(self, ctx, author: Optional[discord.Member] = None) -> None:
+    async def random(self, ctx, *author: Optional[discord.Member]) -> None:
         pipeline = []
         if author:
             pipeline.append({'$match': {'author_id': author.id}})
@@ -206,6 +194,18 @@ class Quote(commands.Cog):
                 return self.create_quote_embed(quote_object, field_name='Quote:', e=e)
         await self.bot.db[collection_name].insert_one(quote_object)
         return self.create_quote_embed(quote_object)
+
+    @staticmethod
+    def get_authors(text: str) -> Union[None, Tuple[Tuple[int], str]]:
+        pattern: Pattern = re.compile(r'( ?<@!?[0-9]+>)+$')
+        int_pattern: Pattern = re.compile(r'[0-9]]')
+        match: Match = pattern.search(text)
+        if not match:
+            return None
+        start = match.start()
+        text, authors = text[:start], text[start:]
+        author_ids: Set = set(int_pattern.findall(authors))
+        return tuple(map(int, author_ids)), text
 
     @staticmethod
     def create_quote_query(query: Dict[str, Any], author_type='and', ignore = []):
