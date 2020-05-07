@@ -39,11 +39,10 @@ class Quote(commands.Cog):
 
     @commands.group(aliases=['q'], invoke_without_command=True)
     async def quote(self, ctx: commands.Context, *, text) -> None:
-        author_result = self.get_authors(text)
-        if author_result is None:
+        author_ids, quote_text = self.get_authors(text)
+        if author_ids is None:
             await ctx.send(f'{ctx.message.author.mention} No authors were found :(')
             return
-        author_ids, quote_text = author_result
         embed = await self.store_quote(ctx.message, author_ids, quote_text=quote_text)
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
@@ -206,10 +205,10 @@ class Quote(commands.Cog):
         return author_str
 
     @staticmethod
-    def get_authors(text: str) -> Union[None, Tuple[Tuple[int], str]]:
+    def get_authors(text: str) -> Tuple[Optional[Tuple[int]], str]:
         match: Match = AUTHORS_PATTERN.search(text)
         if not match:
-            return None
+            return None, text
         start = match.start()
         text, authors = text[:start], text[start:]
         author_ids: Set = set(BASIC_INT_PATTERN.findall(authors))
