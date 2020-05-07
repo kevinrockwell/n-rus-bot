@@ -100,29 +100,17 @@ class Quote(commands.Cog):
         await ctx.send(title, embed=e)
 
     @quote.command(name='list')  # TODO make async enumerate
-    async def list_(self, ctx: commands.Context, *args):
-        n = 0
-        authors = []
-        for arg in args:
-            if arg.isdigit():
-                if n == 0:
-                    n = int(arg)
-                else:
-                    await ctx.send(f'{ctx.author.mention} Please supply only _one_ `number` argument.')
-                    return
-            else:
-                match = MENTION_PATTERN.fullmatch(arg)
-                if match:
-                    authors.append(int(match.group(1)))
-        if n <= 0:
-            n = 1
-        elif n > 5:
-            await ctx.send(f'{ctx.author.mention} Sending > 5 quotes not permitted')
+    async def list_(self, ctx: commands.Context, *, text):
+        n, authors = self.get_number_and_authors(text)
+        if n > 6:
+            await ctx.send(f'{ctx.author.mention} Sending > 6 quotes not permitted')
             return
+        elif n < 1:
+            n = 6  # Set to default if amount is unreasonable
         query = {}
-        if authors:
-            query.update({'author_id': {'$in': authors}})
-        results = self.bot.db[str(ctx.guild.id)].find(query, limit=n)
+        if authors is not None:
+            query.update({'author_id': authors})  # Is formatted into correct MongoDB call by create_quote_query
+        results = self.bot.db[str(ctx.guild.id)].find(self.create_quote_query(query), limit=n)
         results.sort('time', pymongo.DESCENDING)
         e = discord.Embed()
         title = f'{ctx.author.mention} Most recent quote{"s" if n > 1 else ""}'
