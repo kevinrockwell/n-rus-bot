@@ -98,12 +98,16 @@ class Quote(commands.Cog):
         if authors is not None:
             query.update({'author_id': authors})  # Is formatted into correct MongoDB call by create_quote_query
         results = self.bot.db[str(ctx.guild.id)].find(self.create_quote_query(query), limit=n)
-        results.sort('time', pymongo.ASCENDING)
+        results.sort('time', pymongo.DESCENDING)
         e = discord.Embed()
-        title = f'{ctx.author.mention} Most recent quote{"s" if n > 1 else ""}'
+        i = 0
         async for i, quote in utils.async_enumerate(results, start=1):
             self.create_quote_embed(quote, self.nth_number_str(i), e)
-        await ctx.send(title, embed=e)
+        title = f'{ctx.author.mention} Most recent quote{"s" if i > 1 else ""}'
+        if i:
+            await ctx.send(title, embed=e)
+        else:
+            await ctx.send(f'{ctx.message.author.mention} No quotes stored.')
 
     @commands.check_any(commands.has_permissions(administrator=True),
                         commands.has_permissions(manage_messages=True),
