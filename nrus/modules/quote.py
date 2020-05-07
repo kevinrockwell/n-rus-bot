@@ -47,7 +47,7 @@ class Quote(commands.Cog):
 
     @staticmethod
     def get_authors(text: str) -> Union[None, Tuple[Tuple[int], str]]:
-        pattern: Pattern = re.compile(r'( <@!?[0-9]+>)+$')
+        pattern: Pattern = re.compile(r'( ?<@!?[0-9]+>)+$')
         int_pattern: Pattern = re.compile(r'[0-9]]')
         match: Match = pattern.search(text)
         if not match:
@@ -151,18 +151,43 @@ class Quote(commands.Cog):
         await ctx.send(ctx.author.mention, embed=e)
 
     @quote.command(aliases=['number', 'countquotes'])
-    async def count(self, ctx: commands.Context, author: Optional[discord.Member] = None) -> None:
+    async def count(self, ctx: commands.Context, *, text: Optional = '') -> None:
         query = {}
-        if author:
-            query['author_id'] = author.id
+        if text:
+            authors = self.get_authors(text)
+            if authors and authors[1].strip() == '':
+                query['author_id'] = self.create_quote_query({'author_id': authors[0]})
+            else:
+                await ctx.send(f'Unexpected argument: {authors[1]}')
+                return
+        else:
+            authors = []
         n = await self.bot.db[str(ctx.guild.id)].count_documents(query)
         if n == 1:
             response = f'{ctx.author.mention} there is 1 quote stored'
         else:
             response = f'{ctx.author.mention} there are {n} quotes stored'
-        if author:
-            response += f' by {author.mention}'
-        await ctx.send(response)
+        author_len = len(authors)
+        author_str = 'by '
+        if not author_len:
+            await ctx.send(response)
+            return
+        elif author_len == 1:
+            author_str += utils.create_mention(authors[0])
+        elif author_len == 2:
+            author_str += ' and '.join(map(utils.create_mention, authors))
+        else:
+            author_str += ', '.join(map(utils.create_mention, authors[:-1]))
+            author_str += 'and ' + utils.create_mention(authors[-1])
+        await ctx.send(response + author_str)
+
+    def get_number_and_authors(self, text: str) -> Union[str, Tuple[int, Tuple[int]]]:
+        number, text = self.get_number_matches(text)
+        authors, text = self.get_authors(text.strip())
+        text = text.strip()
+        if text != '':
+            return text
+        return number, authors
 
     async def quote_from_message(self, message: discord.Message, quoter_id: int) -> None:
         e = await self.store_quote(message, message.author.id, quoter_id=quoter_id)
