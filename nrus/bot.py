@@ -19,8 +19,10 @@ class NRus(commands.Bot):
         self.start_time = time.time()
         if self.settings['release'] == 'production':
             self.db: motor.AsyncIOMotorDatabase = motor.AsyncIOMotorClient().NRus
-        else:
+        elif self.settings['release'] == 'devel':
             self.db: motor.AsyncIOMotorCollection = motor.AsyncIOMotorClient().NRusTesting
+        else:
+            raise ValueError('Invalid value for `release` in `settings.json`')
         self.guild_settings: motor.AsyncIOMotorCollection = self.db.guilds
         self.guild_prefixes: dict = {}
         self.indexed: list = []
