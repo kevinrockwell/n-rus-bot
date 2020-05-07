@@ -9,7 +9,9 @@ from motor.motor_asyncio import AsyncIOMotorCursor
 from bot import NRus
 import utils
 
-MENTION_PATTERN: Pattern = re.compile(r'<@!?([0-9]+)>')
+AUTHORS_PATTERN: Pattern = re.compile(r'( ?<@!?[0-9]+>)+$')
+BASIC_INT_PATTERN: Pattern = re.compile(r'[0-9]')
+GET_NUMBER_PATTERN: Pattern = re.compile(r' ?([0-9]+)$')
 
 
 class Quote(commands.Cog):
@@ -51,40 +53,30 @@ class Quote(commands.Cog):
 
     @quote.command(aliases=['s'])
     async def search(self, ctx: commands.Context, *, text: str):
-        if len(text) < 1 or len(text) == 1 and MENTION_PATTERN.search(text[0]):
-            await ctx.send('No search phrase provided')
-        author_id_str = ''
-        author = self.get_authors(text)
-        if isinstance(author, str):
-            number, phrase = self.get_number_matches(text)
-            author = self.get_authors(phrase)
-            if not isinstance(author, str):
-                author_id_str, phrase = author
-        else:
-            author_id_str, phrase = author
-            number, phrase = self.get_number_matches(phrase)
-        if number > 5:  # TODO Make this configurable on a guild by guild basis
-            await ctx.send(f'{ctx.message.author.mention} Sending > 5 quotes from a search not permitted.')
+        number, text = self.get_number_matches(text.strip())
+        authors, phrase = self.get_authors(text.strip())
+        if number > 6:  # TODO Make this configurable on a guild by guild basis
+            await ctx.send(f'{ctx.message.author.mention} Sending > 6 quotes from a search not permitted.')
             return
         elif number < 1:
-            await ctx.send(f'{ctx.message.author.mention} Cannot send less than 1 quote')
-            return
-        phrase = ' '.join(phrase)
+            number = 6
         query = {'$text': {'$search': phrase}}
-        if author_id_str:
-            query.update({'author_id': int(author_id_str)})
+        if authors:
+            query.update({'author_id': authors})
         result: AsyncIOMotorCursor = self.bot.db[str(ctx.guild.id)].find(
-            query, {'score': {'$meta': 'textScore'}}, limit=number)
+            self.create_quote_query(query), {'score': {'$meta': 'textScore'}}, limit=number)
         result.sort([('score', {'$meta': 'textScore'})])
         e = discord.Embed()
-        i = 1
-        async for quote in result:
+        i = 0
+        async for i, quote in utils.async_enumerate(result, start=1):
             e = self.create_quote_embed(quote, self.nth_number_str(i), e=e)
-            i += 1
-        if number > 1:
-            title = f'{ctx.author.mention} Best {number} matches for {phrase}:'
-        else:
+        if i == 0:
+            await ctx.send(f'No matches for {phrase} found.')
+            return
+        elif i > 1:
             title = f'{ctx.author.mention} Best matches for {phrase}:'
+        else:
+            title = f'{ctx.author.mention} Best match for {phrase}:'
         await ctx.send(title, embed=e)
 
     @quote.command(name='list')  # TODO make async enumerate
@@ -197,18 +189,16 @@ class Quote(commands.Cog):
 
     @staticmethod
     def get_authors(text: str) -> Union[None, Tuple[Tuple[int], str]]:
-        pattern: Pattern = re.compile(r'( ?<@!?[0-9]+>)+$')
-        int_pattern: Pattern = re.compile(r'[0-9]]')
-        match: Match = pattern.search(text)
+        match: Match = AUTHORS_PATTERN.search(text)
         if not match:
             return None
         start = match.start()
         text, authors = text[:start], text[start:]
-        author_ids: Set = set(int_pattern.findall(authors))
+        author_ids: Set = set(BASIC_INT_PATTERN.findall(authors))
         return tuple(map(int, author_ids)), text
 
     @staticmethod
-    def create_quote_query(query: Dict[str, Any], author_type='and', ignore = []):
+    def create_quote_query(query: Dict[str, Any], author_type='and', ignore=()):
         if author_type not in ['and', 'or']:
             raise ValueError('Author Type must equal "and" or "or"')
         out_query = {}
@@ -226,8 +216,7 @@ class Quote(commands.Cog):
     @staticmethod
     def get_number_matches(text: str) -> Tuple[int, str]:
         """Returns number from the end of string or -1 if no number is found, along with the remainder of string"""
-        number_pattern: Pattern = re.compile(r' (?[0-9]+)$')
-        match: Match = number_pattern.match(text)
+        match: Match = GET_NUMBER_PATTERN.match(text)
         if match:
             return -1, text
         return int(match.group(1)), text[:match.start()]
