@@ -58,8 +58,10 @@ class Quote(commands.Cog):
         if number > 6:  # TODO Make this configurable on a guild by guild basis
             await ctx.send(f'{ctx.message.author.mention} Sending > 6 quotes from a search not permitted.')
             return
-        elif number < 1:
+        elif number is None:
             number = 6
+        elif number < 1:
+            await ctx.send('Cannot send less than 1 quote.')
         query = {'$text': {'$search': phrase}}
         if authors:
             query.update({'author_id': authors})
@@ -112,8 +114,8 @@ class Quote(commands.Cog):
     @quote.command(aliases=['r'])
     async def random(self, ctx, *author: Optional[discord.Member]) -> None:
         pipeline = []
-        if author:
-            pipeline.append({'$match': {'author_id': author.id}})
+        if author is not None:
+            pipeline.append({'$match': {'author_id': {'$all': [*map(lambda a: a.id, author)]}}})
         pipeline.append({'$sample': {'size': 1}})
         result = self.bot.db[str(ctx.guild.id)].aggregate(pipeline)
         quote_ = await result.to_list(1)
@@ -147,7 +149,7 @@ class Quote(commands.Cog):
         else:
             await ctx.send(response)
 
-    def get_number_and_authors(self, text: str) -> Union[str, Tuple[int, Tuple[int]]]:
+    def get_number_and_authors(self, text: str) -> Union[str, Tuple[Optional[int], Tuple[int]]]:
         number, text = self.get_number_matches(text)
         authors, text = self.get_authors(text.strip())
         text = text.strip()
@@ -227,11 +229,11 @@ class Quote(commands.Cog):
         return out_query
 
     @staticmethod
-    def get_number_matches(text: str) -> Tuple[int, str]:
+    def get_number_matches(text: str) -> Tuple[Optional[int], str]:
         """Returns number from the end of string or -1 if no number is found, along with the remainder of string"""
         match: Match = GET_NUMBER_PATTERN.match(text)
         if match is None:
-            return -1, text
+            return None, text
         return int(match.group(1)), text[:match.start()]
 
     @staticmethod
