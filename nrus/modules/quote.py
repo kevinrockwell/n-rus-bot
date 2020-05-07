@@ -38,7 +38,7 @@ class Quote(commands.Cog):
                 await self.quote_from_message(message, payload.user_id)
 
     @commands.group(aliases=['q'], invoke_without_command=True, usage='<quote> <author> [authors ...]',
-                    help='- On its own, an alias for `quote add` -- Try `help quote`')
+                    help="- On its own, an alias for `quote add` -- Try `help quote`.\n\nMost commands use 1+ authors")
     async def quote(self, ctx: commands.Context, *, text) -> None:
         author_ids, quote_text = self.get_authors(text)
         if author_ids is None:
