@@ -73,7 +73,7 @@ class Admin(commands.Cog):
             await ctx.send('Checkout Complete.', embed=e)
         else:
             await ctx.send('No git output...')
-        if output.check_returncode():
+        if output.returncode == 0:
             await ctx.send('Reloading extensions...')
             try:
                 self.bot.reload_extensions()
