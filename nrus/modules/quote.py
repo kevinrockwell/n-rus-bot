@@ -10,7 +10,7 @@ from bot import NRus
 import utils
 
 AUTHORS_PATTERN: Pattern = re.compile(r'( ?<@!?[0-9]+>)+$')
-BASIC_INT_PATTERN: Pattern = re.compile(r'[0-9]')
+BASIC_INT_PATTERN: Pattern = re.compile(r'[0-9]+')
 GET_NUMBER_PATTERN: Pattern = re.compile(r' ?([0-9]+)$')
 
 
@@ -43,8 +43,8 @@ class Quote(commands.Cog):
         if author_result is None:
             await ctx.send(f'{ctx.message.author.mention} No authors were found :(')
             return
-        author_ids, quote = author_result
-        embed = await self.store_quote(ctx.message, author_ids, quote=' '.join(quote))
+        author_ids, quote_text = author_result
+        embed = await self.store_quote(ctx.message, author_ids, quote_text=quote_text)
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
     @quote.command()
@@ -161,17 +161,17 @@ class Quote(commands.Cog):
         e = await self.store_quote(message, message.author.id, quoter_id=quoter_id)
         await message.channel.send(f'<@!{quoter_id}>', embed=e)
 
-    async def store_quote(self, message: discord.Message, author_ids: Tuple[int], quote: Optional[str] = None,
+    async def store_quote(self, message: discord.Message, author_ids: Tuple[int], quote_text: Optional[str] = None,
                           quoter_id: Optional[int] = None) -> discord.Embed:
         quote_object = {
             'author_id': author_ids,
-            'quote': quote,
+            'quote': quote_text,
             'time': message.created_at,
             'quoter_id': quoter_id
         }
         if quoter_id is None:
             quote_object['quoter_id'] = message.author.id
-        if quote is None:
+        if quote_text is None:
             quote_object['quote'] = message.content
         collection_name = str(message.guild.id)
         if collection_name not in self.bot.indexed:
@@ -202,14 +202,14 @@ class Quote(commands.Cog):
         if author_type not in ['and', 'or']:
             raise ValueError('Author Type must equal "and" or "or"')
         out_query = {}
-        authors: Tuple = query.pop('author_id', ())
+        authors: Tuple = query.get('author_id', ())
         if authors:
             if author_type == 'and':
                 out_query['author_id'] = {'$all': authors}
             else:
                 out_query['$or'] = [{'author_id': a} for a in authors]
-        for key, value in query:
-            if key not in ignore:
+        for key, value in query.items():
+            if key not in ignore and key != 'author_id':
                 out_query[key] = value
         return out_query
 
