@@ -37,7 +37,8 @@ class Quote(commands.Cog):
             if star_count == 1:
                 await self.quote_from_message(message, payload.user_id)
 
-    @commands.group(aliases=['q'], invoke_without_command=True)
+    @commands.group(aliases=['q'], invoke_without_command=True, usage='<quote> <author> [authors ...]',
+                    help='- The quote command group, on its own, an alias for quote add')
     async def quote(self, ctx: commands.Context, *, text) -> None:
         author_ids, quote_text = self.get_authors(text)
         if author_ids is None:
@@ -46,16 +47,16 @@ class Quote(commands.Cog):
         embed = await self.store_quote(ctx.message, author_ids, quote_text=quote_text)
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
-    @quote.command()
+    @quote.command(usage='<quote> <author> [authors ...]', help='- Add a quote to the database')
     async def add(self, ctx: commands.Context, *, text: str):
         await self.quote(ctx, text=text)
 
-    @quote.command(aliases=['s'])
+    @quote.command(aliases=['s'], usage='<phrase> [authors ...] [number] ', help='- Search for quotes matching phrase')
     async def search(self, ctx: commands.Context, *, text: str):
         number, text = self.get_number_matches(text.strip())
         authors, phrase = self.get_authors(text.strip())
         if number is None:
-            number = 6  # Set to default if not amount specified
+            number = 1  # Set to default if not amount specified
         elif number > 6:  # TODO Make this configurable on a guild by guild basis
             await ctx.send(f'{ctx.message.author.mention} Sending > 6 quotes from a search not permitted.')
             return
@@ -80,7 +81,8 @@ class Quote(commands.Cog):
             title = f'{ctx.author.mention} Best match for {phrase}:'
         await ctx.send(title, embed=e)
 
-    @quote.command(name='list')  # TODO make async enumerate
+    @quote.command(name='list', usage='[authors ...] [number=6]',
+                   help='- List most recent [number] quotes by [authors]')
     async def list_(self, ctx: commands.Context, *, text: Optional[str] = None):
         if text:
             n, authors = self.get_number_and_authors(text)
@@ -112,11 +114,11 @@ class Quote(commands.Cog):
     @commands.check_any(commands.has_permissions(administrator=True),
                         commands.has_permissions(manage_messages=True),
                         commands.has_role(699765480566554645))
-    @quote.command()
+    @quote.command(hidden=True, help='- Not Yet Implemented')
     async def delete(self, ctx: commands.Context):
         await ctx.send(f"{ctx.author.mention} Sorry haven't implemented that yet :(")
 
-    @quote.command(aliases=['r'])
+    @quote.command(aliases=['r'], usage='[authors ...]', help='- Display a random quote')
     async def random(self, ctx, *author: Optional[discord.Member]) -> None:
         pipeline = []
         if author:
@@ -127,7 +129,8 @@ class Quote(commands.Cog):
         e = self.create_quote_embed(quote_[0], 'Random Quote:')
         await ctx.send(ctx.author.mention, embed=e)
 
-    @quote.command(aliases=['number', 'countquotes'])
+    @quote.command(aliases=['number', 'countquotes'], usage='[authors ...]',
+                   help='- Count quotes stored, optionally by the specified authors')
     async def count(self, ctx: commands.Context, *, text: Optional[str] = None) -> None:
         query = {}
         if text:
