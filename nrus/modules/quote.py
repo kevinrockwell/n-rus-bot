@@ -131,7 +131,7 @@ class Quote(commands.Cog):
             authors = self.get_authors(text)
             if authors[1].strip() == '':
                 if authors[0]:
-                    query['author_id'] = self.create_quote_query({'author_id': authors[0]})
+                    query.update(self.create_quote_query({'author_id': authors[0]}))
                 else:
                     authors = ((),)
             else:
@@ -139,6 +139,7 @@ class Quote(commands.Cog):
                 return
         else:
             authors = ((),)
+        print(query)
         n = await self.bot.db[str(ctx.guild.id)].count_documents(query)
         if n == 1:
             response = f'{ctx.author.mention} there is 1 quote stored'
