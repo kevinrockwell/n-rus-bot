@@ -80,24 +80,26 @@ class Quote(commands.Cog):
         await ctx.send(title, embed=e)
 
     @quote.command(name='list')  # TODO make async enumerate
-    async def list_(self, ctx: commands.Context, *, text):
-        n, authors = self.get_number_and_authors(text)
-        if n > 6:
-            await ctx.send(f'{ctx.author.mention} Sending > 6 quotes not permitted')
-            return
-        elif n < 1:
-            n = 6  # Set to default if amount is unreasonable
+    async def list_(self, ctx: commands.Context, *, text: Optional[str] = None):
+        if text:
+            n, authors = self.get_number_and_authors(text)
+            if n > 6:
+                await ctx.send(f'{ctx.author.mention} Sending > 6 quotes not permitted')
+                return
+            elif n < 1:
+                n = 6  # Set to default if amount is unreasonable
+        else:
+            n = 6
+            authors = None
         query = {}
         if authors is not None:
             query.update({'author_id': authors})  # Is formatted into correct MongoDB call by create_quote_query
         results = self.bot.db[str(ctx.guild.id)].find(self.create_quote_query(query), limit=n)
-        results.sort('time', pymongo.DESCENDING)
+        results.sort('time', pymongo.ASCENDING)
         e = discord.Embed()
         title = f'{ctx.author.mention} Most recent quote{"s" if n > 1 else ""}'
-        i = 1
-        async for quote in results:
+        async for i, quote in utils.async_enumerate(results, start=1):
             self.create_quote_embed(quote, self.nth_number_str(i), e)
-            i += 1
         await ctx.send(title, embed=e)
 
     @commands.check_any(commands.has_permissions(administrator=True),
@@ -119,35 +121,31 @@ class Quote(commands.Cog):
         await ctx.send(ctx.author.mention, embed=e)
 
     @quote.command(aliases=['number', 'countquotes'])
-    async def count(self, ctx: commands.Context, *, text: Optional = '') -> None:
+    async def count(self, ctx: commands.Context, *, text: Optional[str] = None) -> None:
         query = {}
         if text:
             authors = self.get_authors(text)
-            if authors and authors[1].strip() == '':
-                query['author_id'] = self.create_quote_query({'author_id': authors[0]})
+            if authors[1].strip() == '':
+                if authors[0]:
+                    query['author_id'] = self.create_quote_query({'author_id': authors[0]})
+                else:
+                    authors = ((),)
             else:
                 await ctx.send(f'Unexpected argument: {authors[1]}')
                 return
         else:
-            authors = []
+            authors = ((),)
         n = await self.bot.db[str(ctx.guild.id)].count_documents(query)
         if n == 1:
             response = f'{ctx.author.mention} there is 1 quote stored'
         else:
             response = f'{ctx.author.mention} there are {n} quotes stored'
-        author_len = len(authors)
-        author_str = 'by '
-        if not author_len:
-            await ctx.send(response)
-            return
-        elif author_len == 1:
-            author_str += utils.create_mention(authors[0])
-        elif author_len == 2:
-            author_str += ' and '.join(map(utils.create_mention, authors))
+
+        attribution = self.get_attribution_str(authors[0])
+        if attribution:
+            await ctx.send(f'{response} by {attribution}')
         else:
-            author_str += ', '.join(map(utils.create_mention, authors[:-1]))
-            author_str += 'and ' + utils.create_mention(authors[-1])
-        await ctx.send(response + author_str)
+            await ctx.send(response)
 
     def get_number_and_authors(self, text: str) -> Union[str, Tuple[int, Tuple[int]]]:
         number, text = self.get_number_matches(text)
@@ -188,6 +186,21 @@ class Quote(commands.Cog):
         return self.create_quote_embed(quote_object)
 
     @staticmethod
+    def get_attribution_str(authors: Tuple[int]) -> str:
+        author_str = ''
+        author_len = len(authors)
+        if not author_len:
+            pass
+        elif author_len == 1:
+            author_str += utils.create_mention(authors[0])
+        elif author_len == 2:
+            author_str += ' and '.join(map(utils.create_mention, authors))
+        else:
+            author_str += ', '.join(map(utils.create_mention, authors[:-1]))
+            author_str += ', and ' + utils.create_mention(authors[-1])
+        return author_str
+
+    @staticmethod
     def get_authors(text: str) -> Union[None, Tuple[Tuple[int], str]]:
         match: Match = AUTHORS_PATTERN.search(text)
         if not match:
@@ -217,7 +230,7 @@ class Quote(commands.Cog):
     def get_number_matches(text: str) -> Tuple[int, str]:
         """Returns number from the end of string or -1 if no number is found, along with the remainder of string"""
         match: Match = GET_NUMBER_PATTERN.match(text)
-        if match:
+        if match is None:
             return -1, text
         return int(match.group(1)), text[:match.start()]
 
@@ -227,12 +240,11 @@ class Quote(commands.Cog):
         conversion_dict = {'1': 'st', '2': 'nd', '3': 'rd'}
         return f'{n}{conversion_dict.get(last_n, "th")}'
 
-    @staticmethod
-    def create_quote_embed(quote: dict, field_name: Optional[str] = 'Quote Stored:',
+    def create_quote_embed(self, quote: dict, field_name: Optional[str] = 'Quote Stored:',
                            e: Optional[discord.Embed] = None) -> discord.Embed:
         if e is None:
             e: discord.Embed = discord.Embed()
-        attribution = f'- <@!{quote["author_id"]}>\nQuoted by <@!{quote["quoter_id"]}>'
+        attribution = f'- {self.get_attribution_str(quote["author_id"])}\nQuoted by <@!{quote["quoter_id"]}>'
         e.add_field(name=field_name, value=f'"{quote["quote"]}"\n{attribution}')
         return e  # TODO add check to see if embed is too long
 
