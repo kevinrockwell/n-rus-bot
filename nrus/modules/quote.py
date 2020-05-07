@@ -7,6 +7,7 @@ import pymongo
 from motor.motor_asyncio import AsyncIOMotorCursor
 
 from bot import NRus
+import utils
 
 MENTION_PATTERN: Pattern = re.compile(r'<@!?([0-9]+)>')
 
@@ -194,7 +195,7 @@ class Quote(commands.Cog):
         return self.create_quote_embed(quote_object)
 
     @staticmethod
-    def create_quote_query(query: Dict[str, Any], author_type='and', ignore=[]):
+    def create_quote_query(query: Dict[str, Any], author_type='and', ignore = []):
         if author_type not in ['and', 'or']:
             raise ValueError('Author Type must equal "and" or "or"')
         out_query = {}
@@ -210,32 +211,19 @@ class Quote(commands.Cog):
         return out_query
 
     @staticmethod
-    def get_number_matches(text: Tuple) -> Tuple[int, Tuple[str]]:
-        if len(text) < 2:
-            number = 1
-            phrase = text
-        elif text[-1].isdigit():
-            number = int(text[-1])
-            phrase = text[:-1]
-        elif text[0].isdigit():
-            number = int(text[0])
-            phrase = text[0:]
-        else:
-            number = 1
-            phrase = text
-        return number, phrase
+    def get_number_matches(text: str) -> Tuple[int, str]:
+        """Returns number from the end of string or -1 if no number is found, along with the remainder of string"""
+        number_pattern: Pattern = re.compile(r' (?[0-9]+)$')
+        match: Match = number_pattern.match(text)
+        if match:
+            return -1, text
+        return int(match.group(1)), text[:match.start()]
 
     @staticmethod
     def nth_number_str(n: int) -> str:
         last_n = str(n)[-1]
-        if last_n == '1':
-            return f'{n}st'
-        elif last_n == '2':
-            return f'{n}nd'
-        elif last_n == '3':
-            return f'{n}rd'
-        else:
-            return f'{n}th'
+        conversion_dict = {'1': 'st', '2': 'nd', '3': 'rd'}
+        return f'{n}{conversion_dict.get(last_n, "th")}'
 
     @staticmethod
     def create_quote_embed(quote: dict, field_name: Optional[str] = 'Quote Stored:',
