@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import subprocess
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -16,10 +17,14 @@ class Admin(commands.Cog):
         return self.bot.is_owner(ctx.author)
 
     @commands.command(hidden=True)
-    async def reload(self, ctx: commands.Context, name: str) -> None:
-        ext_name = f'modules.{name}'
-        await ctx.send(f'Reloading {ext_name}')
-        self.bot.reload_extension(ext_name)
+    async def reload(self, ctx: commands.Context, name: Optional[str] = None) -> None:
+        if name:
+            ext_name = f'modules.{name}'
+            await ctx.send(f'Reloading {ext_name}')
+            self.bot.reload_extension(ext_name)
+        else:
+            await ctx.send('Reloading all modules...')
+            self.bot.reload_extensions()
 
     @commands.command(hidden=True)
     async def load(self, ctx: commands.Context, name: str) -> None:
