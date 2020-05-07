@@ -46,8 +46,8 @@ class Quote(commands.Cog):
         await ctx.send(f'{ctx.message.author.mention}', embed=embed)
 
     @quote.command()
-    async def add(self, ctx: commands.Context, author: discord.Member, *, text: str):
-        await self.quote(ctx, author, text=text)
+    async def add(self, ctx: commands.Context, *, text: str):
+        await self.quote(ctx, text=text)
 
     @quote.command(aliases=['s'])
     async def search(self, ctx: commands.Context, *, text: str):
