@@ -167,7 +167,7 @@ class Quote(commands.Cog):
         return number, authors
 
     async def quote_from_message(self, message: discord.Message, quoter_id: int) -> None:
-        e = await self.store_quote(message, message.author.id, quoter_id=quoter_id)
+        e = await self.store_quote(message, (message.author.id,), quoter_id=quoter_id)
         await message.channel.send(f'<@!{quoter_id}>', embed=e)
 
     async def store_quote(self, message: discord.Message, author_ids: Tuple[int], quote_text: Optional[str] = None,
