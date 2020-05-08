@@ -15,10 +15,12 @@ GET_NUMBER_PATTERN: Pattern = re.compile(r' ?([0-9]+)$')
 
 
 class Quote(commands.Cog):
+
+    star_reactions = ['⭐', '🌟']
+
     def __init__(self, bot: NRus):
         self.bot = bot
         self.delete_queue = {}
-        self.star_reactions = ['⭐', '🌟']
 
     def cog_check(self, ctx):
         return bool(ctx.guild)
@@ -37,10 +39,12 @@ class Quote(commands.Cog):
             if star_count == 1:
                 await self.quote_from_message(message, payload.user_id)
 
-    @commands.group(aliases=['q'], invoke_without_command=True, usage='<quote> <author> [authors ...]',
+    @commands.group(aliases=['q'], invoke_without_command=True,
+                    usage='<quote> <author> [authors ...] or <quote> - <author> [authors ...]',
                     help="- On its own, an alias for `quote add` -- Try `help quote`.\n\nMost commands use 1+ authors")
     async def quote(self, ctx: commands.Context, *, text) -> None:
-        author_ids, quote_text = self.get_authors(text)
+        author_ids, quote_text = self.get_authors(text.strip())
+        quote_text = quote_text.rstrip('-').rstrip()  # Strip whitespace and '-' characters from the end of quote_text
         if author_ids is None:
             await ctx.send(f'{ctx.message.author.mention} No authors were found :(')
             return
@@ -219,7 +223,7 @@ class Quote(commands.Cog):
         start = match.start()
         text, authors = text[:start], text[start:]
         author_ids: Set = set(BASIC_INT_PATTERN.findall(authors))
-        return tuple(map(int, author_ids)), text
+        return tuple(map(int, author_ids)), text.strip()
 
     @staticmethod
     def create_quote_query(query: Dict[str, Any], author_type='and', ignore=()):
@@ -243,7 +247,7 @@ class Quote(commands.Cog):
         match: Match = GET_NUMBER_PATTERN.match(text)
         if match is None:
             return None, text
-        return int(match.group(1)), text[:match.start()]
+        return int(match.group(1)), text[:match.start()].strip()
 
     @staticmethod
     def nth_number_str(n: int) -> str:
@@ -257,7 +261,7 @@ class Quote(commands.Cog):
         if e is None:
             e: discord.Embed = discord.Embed()
         attribution = f'- {cls.get_attribution_str(quote["author_id"])}\nQuoted by <@!{quote["quoter_id"]}>'
-        e.add_field(name=field_name, value=f'"{quote["quote"]}"\n{attribution}')
+        e.add_field(name=field_name, value=f'{quote["quote"]}\n{attribution}')
         return e  # TODO add check to see if embed is too long
 
 
