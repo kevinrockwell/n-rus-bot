@@ -62,7 +62,7 @@ class Admin(commands.Cog):
         if result is not None:
             await ctx.send(result)
 
-    @commands.command(name='gitreload', hidden=True)
+    @commands.command(name='gitreload', hidden=True, aliases=['reloadgit'])
     async def git_reload(self, ctx: commands.Context):
         await ctx.send('Checking out from git...')
         loop = asyncio.get_running_loop()
