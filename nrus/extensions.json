@@ -1,5 +1,6 @@
 [
     "modules.settings",
     "modules.quote",
-    "modules.admin"
+    "modules.admin",
+    "modules.misc"
 ]
