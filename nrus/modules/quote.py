@@ -9,10 +9,6 @@ from motor.motor_asyncio import AsyncIOMotorCursor
 from bot import NRus
 import utils
 
-AUTHORS_PATTERN: Pattern = re.compile(r'( ?<@!?[0-9]+>)+$')
-BASIC_INT_PATTERN: Pattern = re.compile(r'[0-9]+')
-GET_NUMBER_PATTERN: Pattern = re.compile(r' ?([0-9]+)$')
-
 
 class Quote(commands.Cog):
 
@@ -43,7 +39,7 @@ class Quote(commands.Cog):
                     usage='<quote> <author> [authors ...] or <quote> - <author> [authors ...]',
                     help="- On its own, an alias for `quote add` -- Try `help quote`.\n\nMost commands use 1+ authors")
     async def quote(self, ctx: commands.Context, *, text) -> None:
-        author_ids, quote_text = self.get_authors(text.strip())
+        author_ids, quote_text = utils.get_ending_tags(text.strip())
         quote_text = quote_text.rstrip('-').rstrip()  # Strip whitespace and '-' characters from the end of quote_text
         if author_ids is None:
             await ctx.send(f'{ctx.message.author.mention} No authors were found :(')
@@ -57,8 +53,8 @@ class Quote(commands.Cog):
 
     @quote.command(aliases=['s'], usage='<phrase> [authors ...] [number] ', help='- Search for quotes matching phrase')
     async def search(self, ctx: commands.Context, *, text: str):
-        number, text = self.get_number_matches(text.strip())
-        authors, phrase = self.get_authors(text.strip())
+        number, text = utils.get_number_matches(text.strip())
+        authors, phrase = utils.get_ending_tags(text.strip())
         if number is None:
             number = 1  # Set to default if not amount specified
         elif number > 6:  # TODO Make this configurable on a guild by guild basis
@@ -138,7 +134,7 @@ class Quote(commands.Cog):
     async def count(self, ctx: commands.Context, *, text: Optional[str] = None) -> None:
         query = {}
         if text:
-            authors = self.get_authors(text)
+            authors = utils.get_ending_tags(text)
             if authors[1].strip() == '':
                 if authors[0]:
                     query.update(self.create_quote_query({'author_id': authors[0]}))
@@ -162,9 +158,10 @@ class Quote(commands.Cog):
         else:
             await ctx.send(response)
 
-    def get_number_and_authors(self, text: str) -> Union[str, Tuple[Optional[int], Tuple[int]]]:
-        number, text = self.get_number_matches(text)
-        authors, text = self.get_authors(text.strip())
+    @staticmethod
+    def get_number_and_authors(text: str) -> Union[str, Tuple[Optional[int], Tuple[int]]]:
+        number, text = utils.get_number_matches(text)
+        authors, text = utils.get_ending_tags(text.strip())
         text = text.strip()
         if text != '':
             return text
@@ -216,16 +213,6 @@ class Quote(commands.Cog):
         return author_str
 
     @staticmethod
-    def get_authors(text: str) -> Tuple[Optional[Tuple[int]], str]:
-        match: Match = AUTHORS_PATTERN.search(text)
-        if not match:
-            return None, text
-        start = match.start()
-        text, authors = text[:start], text[start:]
-        author_ids: Set = set(BASIC_INT_PATTERN.findall(authors))
-        return tuple(map(int, author_ids)), text.strip()
-
-    @staticmethod
     def create_quote_query(query: Dict[str, Any], author_type='and', ignore=()):
         if author_type not in ['and', 'or']:
             raise ValueError('Author Type must equal "and" or "or"')
@@ -240,14 +227,6 @@ class Quote(commands.Cog):
             if key not in ignore and key != 'author_id':
                 out_query[key] = value
         return out_query
-
-    @staticmethod
-    def get_number_matches(text: str) -> Tuple[Optional[int], str]:
-        """Returns number from the end of string or -1 if no number is found, along with the remainder of string"""
-        match: Match = GET_NUMBER_PATTERN.match(text)
-        if match is None:
-            return None, text
-        return int(match.group(1)), text[:match.start()].strip()
 
     @staticmethod
     def nth_number_str(n: int) -> str:
