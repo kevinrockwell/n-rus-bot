@@ -4,6 +4,7 @@ import importlib
 import json
 import re
 import subprocess
+import sys
 from typing import Match, Optional, Pattern
 
 import discord
@@ -97,13 +98,17 @@ class Admin(commands.Cog):
             if 'bot' in changed_modules:
                 await ctx.send('nrus/bot.py was changed. Restarting NRus...')
                 await self.bot.logout()
-            for module in changed_modules:
-                if module.startswith('modules.'):
-                    await ctx.send(f'Warning: {module} is in nrus/modules/ but is not in {self.bot.extension_file}')
+            for name in changed_modules:
+                if name.startswith('modules.'):
+                    await ctx.send(f'Warning: {name} is in nrus/modules/ but is not in {self.bot.extension_file}')
+                module = sys.modules.get(name)
+                if module is None:
+                    await ctx.send(f'Warning: Module {name} was changed but is not loaded')
+                    continue
                 try:
                     importlib.reload(module)
                 except Exception as e:
-                    await ctx.send(f'Error loading {module}: {e.__class__.__name__}: {e}')
+                    await ctx.send(f'Error loading {name}: {e.__class__.__name__}: {e}')
             await ctx.send('Checkout Successful')
         else:
             await ctx.send('Git checkout failed, not reloading extensions')
