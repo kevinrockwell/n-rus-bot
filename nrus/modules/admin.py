@@ -1,12 +1,19 @@
 import asyncio
 import functools
+import importlib
+import json
+import os
+import re
 import subprocess
-from typing import Optional
+from typing import Match, Optional, Pattern
 
 import discord
 from discord.ext import commands
 
 from bot import NRus
+
+
+GIT_CHANGED_FILE: Pattern = re.compile(r'nrus/(.+?).py \| [1-9] \+*-*')
 
 
 class Admin(commands.Cog):
@@ -84,8 +91,36 @@ class Admin(commands.Cog):
                 self.bot.reload_extensions()
             except Exception as e:
                 await ctx.send(f'Error loading extensions: {e.__class__.__name__}: {e}')
+            await ctx.send('Reload successful')
+            # Reload python files that are not extensions because these files will not be reloaded
+            # Start by getting list of changed files from git output
+            changed_modules = self.find_changed_modules(output.stdout)
+            if 'bot' in changed_modules:
+                await ctx.send('nrus/bot.py was changed. Restarting NRus...')
+                await self.bot.logout()
+            for module in changed_modules:
+                if module.startswith('modules.'):
+                    await ctx.send(f'Warning: {module} is in nrus/modules/ but is not in {self.bot.extension_file}')
+                try:
+                    importlib.reload(module)
+                except Exception as e:
+                    await ctx.send(f'Error loading {module}: {e.__class__.__name__}: {e}')
+            await ctx.send('Checkout Successful')
         else:
             await ctx.send('Git checkout failed, not reloading extensions')
+
+    def find_changed_modules(self, git_output: bytes) -> list:
+        changed_files = []
+        for line in git_output.decode().split('\n'):
+            match: Match = GIT_CHANGED_FILE.match(line)
+            if match:
+                relative_path = match.group(1)
+                module_name = '.'.join(os.path.split(relative_path))
+                changed_files.append(module_name)
+        # Remove files that are in the extensions file
+        with open(self.bot.extension_file) as f:
+            extensions = json.load(f)
+        return list(filter(lambda a: a not in extensions, changed_files))
 
 
 def setup(bot: NRus):
