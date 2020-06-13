@@ -2,7 +2,6 @@ import asyncio
 import functools
 import importlib
 import json
-import os
 import re
 import subprocess
 from typing import Match, Optional, Pattern
@@ -115,12 +114,12 @@ class Admin(commands.Cog):
             match: Match = GIT_CHANGED_FILE.match(line)
             if match:
                 relative_path = match.group(1)
-                module_name = '.'.join(os.path.split(relative_path))
+                module_name = '.'.join(relative_path.split('/'))
                 changed_files.append(module_name)
         # Remove files that are in the extensions file
         with open(self.bot.extension_file) as f:
             extensions = json.load(f)
-        return list(filter(lambda a: a not in extensions, changed_files))
+        return [file for file in changed_files if file not in extensions]
 
 
 def setup(bot: NRus):
