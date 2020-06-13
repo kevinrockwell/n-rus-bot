@@ -1,12 +1,20 @@
 import asyncio
 import functools
+import importlib
+import json
+import re
 import subprocess
-from typing import Optional
+import sys
+from typing import Match, Optional, Pattern
 
 import discord
 from discord.ext import commands
 
 from bot import NRus
+
+
+# Matches one or more spaces because git output contains extra spaces to line up output
+GIT_CHANGED_FILE: Pattern = re.compile(r'nrus/(.+?).py +\| +[1-9] +\+*-*')
 
 
 class Admin(commands.Cog):
@@ -84,8 +92,40 @@ class Admin(commands.Cog):
                 self.bot.reload_extensions()
             except Exception as e:
                 await ctx.send(f'Error loading extensions: {e.__class__.__name__}: {e}')
+            await ctx.send('Reload successful')
+            # Reload python files that are not extensions because these files will not be reloaded
+            # Start by getting list of changed files from git output
+            changed_modules = self.find_changed_modules(output.stdout)
+            if {'bot', 'main'}.intersection(changed_modules):
+                await ctx.send('nrus/bot.py or nrus/main.py was changed. Restarting NRus...')
+                await self.bot.logout()
+            for name in changed_modules:
+                if name.startswith('modules.'):
+                    await ctx.send(f'Warning: {name} is in nrus/modules/ but is not in {self.bot.extension_file}')
+                module = sys.modules.get(name)
+                if module is None:
+                    await ctx.send(f'Warning: Module {name} was changed but is not loaded')
+                    continue
+                try:
+                    importlib.reload(module)
+                except Exception as e:
+                    await ctx.send(f'Error loading {name}: {e.__class__.__name__}: {e}')
+            await ctx.send('Checkout Successful')
         else:
             await ctx.send('Git checkout failed, not reloading extensions')
+
+    def find_changed_modules(self, git_output: bytes) -> list:
+        changed_files = []
+        for line in git_output.decode().split('\n'):
+            match: Match = GIT_CHANGED_FILE.search(line)
+            if match:
+                relative_path = match.group(1)
+                module_name = '.'.join(relative_path.split('/'))
+                changed_files.append(module_name)
+        # Remove files that are in the extensions file
+        with open(self.bot.extension_file) as f:
+            extensions = json.load(f)
+        return [file for file in changed_files if file not in extensions]
 
 
 def setup(bot: NRus):
