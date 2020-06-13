@@ -96,8 +96,8 @@ class Admin(commands.Cog):
             # Reload python files that are not extensions because these files will not be reloaded
             # Start by getting list of changed files from git output
             changed_modules = self.find_changed_modules(output.stdout)
-            if 'bot' in changed_modules:
-                await ctx.send('nrus/bot.py was changed. Restarting NRus...')
+            if {'bot', 'main'}.intersection(changed_modules):
+                await ctx.send('nrus/bot.py or nrus/main.py was changed. Restarting NRus...')
                 await self.bot.logout()
             for name in changed_modules:
                 if name.startswith('modules.'):
