@@ -13,7 +13,8 @@ from discord.ext import commands
 from bot import NRus
 
 
-GIT_CHANGED_FILE: Pattern = re.compile(r'nrus/(.+?).py \| [1-9] \+*-*')
+# Matches one or more spaces because git output contains extra spaces to line up output
+GIT_CHANGED_FILE: Pattern = re.compile(r'nrus/(.+?).py +\| +[1-9] +\+*-*')
 
 
 class Admin(commands.Cog):
@@ -116,7 +117,7 @@ class Admin(commands.Cog):
     def find_changed_modules(self, git_output: bytes) -> list:
         changed_files = []
         for line in git_output.decode().split('\n'):
-            match: Match = GIT_CHANGED_FILE.match(line)
+            match: Match = GIT_CHANGED_FILE.search(line)
             if match:
                 relative_path = match.group(1)
                 module_name = '.'.join(relative_path.split('/'))
