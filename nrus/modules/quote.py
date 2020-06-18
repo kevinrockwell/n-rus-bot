@@ -1,5 +1,4 @@
-import re
-from typing import Union, Tuple, Match, Pattern, Optional, Set, Dict, Any
+from typing import Union, Tuple, Optional, Dict, Any
 
 import discord
 from discord.ext import commands
