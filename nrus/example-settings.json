@@ -1,4 +1,5 @@
 {
-    "token": "SECRET-TOKEN",
-  "release": "devel"
+  "token": "SECRET-TOKEN",
+  "release": "devel",
+  "status": ""
 }

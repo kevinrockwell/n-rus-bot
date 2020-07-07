@@ -32,6 +32,8 @@ class NRus(commands.Bot):
         self.guild_prefixes = await self._get_prefixes()
         self.indexed = await self.db.list_collection_names()
         print(f'Bot ready as {self.user}')
+        if self.settings['status']:
+            await self.change_presence(activity=discord.Game(self.settings['status']))
 
     def run(self):
         super().run(self.settings['token'])

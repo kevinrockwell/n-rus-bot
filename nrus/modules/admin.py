@@ -3,10 +3,9 @@ import functools
 import importlib
 import json
 import re
-import shlex
 import subprocess
 import sys
-from typing import Match, Optional, Pattern, Tuple
+from typing import Match, Optional, Pattern
 
 import discord
 from discord.ext import commands
@@ -17,6 +16,7 @@ from bot import NRus
 # Matches one or more spaces because git output contains extra spaces to line up output
 GIT_CHANGED_FILE: Pattern = re.compile(r'nrus/(.+?).py +\| +[1-9] +\+*-*')
 MODULE_PATH_MATCH: Pattern = re.compile(r'nrus/modules/[^/]+')
+
 
 class Admin(commands.Cog):
     def __init__(self, bot: NRus):
@@ -114,6 +114,11 @@ class Admin(commands.Cog):
             await ctx.send('No output')
         else:
             await ctx.send('Command Output:', embed=results_embed)
+
+    @commands.command(aliases=['setstatus'])
+    async def set_status(self, ctx: commands.Context, *, status: str):
+        await self.bot.change_presence(activity=discord.Game(status))
+        self.bot.settings['status'] = status
 
     @staticmethod
     async def run_commands(command: str) -> subprocess.CompletedProcess:
