@@ -22,6 +22,10 @@ class Misc(commands.Cog):
         else:
             await ctx.send(url)
 
+    @commands.command(usage='', help='The Agile Manifesto')
+    async def agile(self, ctx):
+        await ctx.send('https://agilemanifesto.org/')
+
 
 def setup(bot: NRus):
     bot.add_cog(Misc(bot))
