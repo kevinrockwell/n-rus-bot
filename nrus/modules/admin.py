@@ -16,7 +16,7 @@ from bot import NRus
 
 # Matches one or more spaces because git output contains extra spaces to line up output
 GIT_CHANGED_FILE: Pattern = re.compile(r'nrus/(.+?).py +\| +[1-9] +\+*-*')
-
+MODULE_PATH_MATCH: Pattern = re.compile(r'nrus/modules/[^/]+')
 
 class Admin(commands.Cog):
     def __init__(self, bot: NRus):
@@ -96,7 +96,7 @@ class Admin(commands.Cog):
             await ctx.send('`nrus/bot.py` or `nrus/main.py` was changed. Restarting NRus...')
             await self.bot.logout()
         for name in changed_modules:
-            if name.startswith('modules.'):
+            if MODULE_PATH_MATCH.fullmatch(name):
                 await ctx.send(f'Warning: {name} is in `nrus/modules/` but is not in `{self.bot.extension_file}`')
             if (module := sys.modules.get(name)) is None:
                 await ctx.send(f'Warning: Module {name} was changed but is not loaded')
