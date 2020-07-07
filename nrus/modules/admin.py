@@ -120,6 +120,11 @@ class Admin(commands.Cog):
         await self.bot.change_presence(activity=discord.Game(status))
         self.bot.settings['status'] = status
 
+    @commands.command()
+    async def logout(self, ctx: commands.Context):
+        await ctx.send('Logging out...')
+        await self.bot.logout()
+
     @staticmethod
     async def run_commands(command: str) -> subprocess.CompletedProcess:
         loop = asyncio.get_running_loop()
