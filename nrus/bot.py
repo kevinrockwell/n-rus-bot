@@ -75,5 +75,8 @@ class NRus(commands.Bot):
 
 
 async def _get_prefix(bot: NRus, msg: discord.Message):
-    prefix = bot.guild_prefixes.get(msg.guild.id, ';')
+    if msg.guild is not None:
+        prefix = bot.guild_prefixes.get(msg.guild.id, ';')
+    else:
+        prefix = ';'
     return commands.when_mentioned_or(prefix, f'{prefix} ')(bot, msg)

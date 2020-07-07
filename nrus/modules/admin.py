@@ -3,9 +3,10 @@ import functools
 import importlib
 import json
 import re
+import shlex
 import subprocess
 import sys
-from typing import Match, Optional, Pattern
+from typing import Match, Optional, Pattern, Tuple
 
 import discord
 from discord.ext import commands
@@ -73,46 +74,73 @@ class Admin(commands.Cog):
     @commands.command(name='gitreload', hidden=True, aliases=['reloadgit'])
     async def git_reload(self, ctx: commands.Context):
         await ctx.send('Checking out from git...')
+        output = await self.run_commands('git pull origin master')
+        if (git_output_embed := self.format_process_output(output)) is None:
+            await ctx.send('No git output...')
+        else:
+            await ctx.send('Checkout Complete.', embed=git_output_embed)
+        if output.returncode != 0:
+            await ctx.send(f'Git checkout failed with return code {output.returncode}, not reloading extensions')
+            return
+        await ctx.send('Reloading extensions...')
+        try:
+            self.bot.reload_extensions()
+        except Exception as e:
+            await ctx.send(f'Error loading extensions: {e.__class__.__name__}: {e}')
+        else:
+            await ctx.send('Reload successful')
+        # Reload python files that are not extensions because these files will not be reloaded
+        # Start by getting list of changed files from git output
+        changed_modules = self.find_changed_modules(output.stdout)
+        if {'bot', 'main'}.intersection(changed_modules):
+            await ctx.send('`nrus/bot.py` or `nrus/main.py` was changed. Restarting NRus...')
+            await self.bot.logout()
+        for name in changed_modules:
+            if name.startswith('modules.'):
+                await ctx.send(f'Warning: {name} is in `nrus/modules/` but is not in `{self.bot.extension_file}`')
+            if (module := sys.modules.get(name)) is None:
+                await ctx.send(f'Warning: Module {name} was changed but is not loaded')
+                continue
+            try:
+                importlib.reload(module)
+            except Exception as e:
+                await ctx.send(f'Error loading {name}: {e.__class__.__name__}: {e}')
+        await ctx.send('Checkout Successful')
+
+    @commands.command(aliases=['sh'])
+    async def shell(self, ctx: commands.context, *, command: str):
+        output = await self.run_commands(command)
+        if (results_embed := self.format_process_output(output)) is None:
+            await ctx.send('No output')
+        else:
+            await ctx.send('Command Output:', embed=results_embed)
+
+    @staticmethod
+    async def run_commands(command: str) -> subprocess.CompletedProcess:
         loop = asyncio.get_running_loop()
-        run = functools.partial(subprocess.run, ['git', 'pull', 'origin', 'master'],
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output: subprocess.CompletedProcess = await loop.run_in_executor(None, run)
+        run = functools.partial(subprocess.run, command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        return await loop.run_in_executor(None, run)
+
+    # TODO see if changing this is required
+    @staticmethod
+    def format_process_output(output: subprocess.CompletedProcess):
+        """Puts stdout and stderr into an embed, max 2048 characters per."""
         e = discord.Embed()
         if output.stdout:
-            e.add_field(name='Git output', value=output.stdout.decode())
+            stdout = output.stdout.decode()
+            if len(stdout) > 2048:
+                # Subtract 15: 6 for label, 6 for codeblocks, and 3 for `...`
+                stdout = stdout[:2048 - 21] + '...'
+            e.description = f'stdout```{stdout}```'
         if output.stderr:
-            e.add_field(name='Git stderr', value=output.stderr.decode())
+            stderr = output.stderr.decode()
+            if len(stderr) > 2048:
+                # See stdout for subtracting 15 explanation
+                stderr = stderr[:2048 - 15] + '...'
+            e.set_footer(text=f'stderr```{stderr}```')
         if len(e):
-            await ctx.send('Checkout Complete.', embed=e)
-        else:
-            await ctx.send('No git output...')
-        if output.returncode == 0:
-            await ctx.send('Reloading extensions...')
-            try:
-                self.bot.reload_extensions()
-            except Exception as e:
-                await ctx.send(f'Error loading extensions: {e.__class__.__name__}: {e}')
-            await ctx.send('Reload successful')
-            # Reload python files that are not extensions because these files will not be reloaded
-            # Start by getting list of changed files from git output
-            changed_modules = self.find_changed_modules(output.stdout)
-            if {'bot', 'main'}.intersection(changed_modules):
-                await ctx.send('nrus/bot.py or nrus/main.py was changed. Restarting NRus...')
-                await self.bot.logout()
-            for name in changed_modules:
-                if name.startswith('modules.'):
-                    await ctx.send(f'Warning: {name} is in nrus/modules/ but is not in {self.bot.extension_file}')
-                module = sys.modules.get(name)
-                if module is None:
-                    await ctx.send(f'Warning: Module {name} was changed but is not loaded')
-                    continue
-                try:
-                    importlib.reload(module)
-                except Exception as e:
-                    await ctx.send(f'Error loading {name}: {e.__class__.__name__}: {e}')
-            await ctx.send('Checkout Successful')
-        else:
-            await ctx.send('Git checkout failed, not reloading extensions')
+            return e
+        return None
 
     def find_changed_modules(self, git_output: bytes) -> list:
         changed_files = []
