@@ -23,8 +23,12 @@ class Misc(commands.Cog):
             await ctx.send(url)
 
     @commands.command(usage='', help='The Agile Manifesto')
-    async def agile(self, ctx):
+    async def agile(self, ctx: commands.Context):
         await ctx.send('https://agilemanifesto.org/')
+
+    @commands.command(usage='man', help='RTFM')
+    async def rtfm(self, ctx: commands.Context):
+        await ctx.send('https://xkcd.com/293/')
 
 
 def setup(bot: NRus):
