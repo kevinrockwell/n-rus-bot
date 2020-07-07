@@ -135,7 +135,7 @@ class Admin(commands.Cog):
             stdout = output.stdout.decode()
             if len(stdout) > 2048:
                 # Subtract 15: 6 for label, 6 for codeblocks, and 3 for `...`
-                stdout = stdout[:2048 - 21] + '...'
+                stdout = stdout[:2048 - 15] + '...'
             e.description = f'stdout```{stdout}```'
         if output.stderr:
             stderr = output.stderr.decode()
