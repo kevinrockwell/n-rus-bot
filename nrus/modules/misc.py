@@ -1,3 +1,5 @@
+from random import randint
+
 from discord.ext import commands
 
 from bot import NRus
@@ -29,6 +31,17 @@ class Misc(commands.Cog):
     @commands.command(usage='man', help='RTFM')
     async def rtfm(self, ctx: commands.Context):
         await ctx.send('https://xkcd.com/293/')
+
+    @commands.command(usage='1d6')
+    async def roll(self, ctx: commands.Context, dice):
+        nums = dice.split('d')
+        if len(nums) != 2 or not all(map(lambda a: a.isdigit(), nums)):
+            await ctx.send(f'Input must be formatted like `1d6`, not `{dice}`')
+            return
+        total = 0
+        for i in range(int(nums[0])):
+            total += randint(1, int(nums[1]))
+        await ctx.send(f'{ctx.message.author.mention} {total}')
 
 
 def setup(bot: NRus):
