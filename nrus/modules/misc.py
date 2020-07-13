@@ -43,6 +43,14 @@ class Misc(commands.Cog):
             total += randint(1, int(nums[1]))
         await ctx.send(f'{ctx.message.author.mention} {total}')
 
+    @commands.command(usage='1d6', name='solumroll')
+    async def solum_roll(self, ctx: commands.Context, dice):
+        nums = dice.split('d')
+        if len(nums) != 2 or not all(map(lambda a: a.isdigit(), nums)):
+            await ctx.send(f'Input must be formatted like `1d6`, not `{dice}`')
+            return
+        await ctx.send(f'{ctx.message.author.mention} {1 * nums[0]}')
+
 
 def setup(bot: NRus):
     bot.add_cog(Misc(bot))
