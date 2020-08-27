@@ -1,6 +1,6 @@
 """Stores utility functions"""
 import re
-from typing import AsyncIterable, Match, Optional, Pattern, Tuple, Union
+from typing import AsyncIterable, Match, Optional, Pattern, Set, Tuple, Union
 
 AUTHORS_PATTERN: Pattern = re.compile(r'( ?<@!?[0-9]+>)+$')
 BASIC_INT_PATTERN: Pattern = re.compile(r'[0-9]+')
@@ -29,7 +29,7 @@ def get_ending_tags(text: str) -> Tuple[Optional[Tuple[int]], str]:
 
 def get_number_matches(text: str) -> Tuple[Optional[int], str]:
     """Returns number from the end of string or None if no number is found, along with the remainder of string"""
-    match: Match = GET_NUMBER_PATTERN.match(text)
+    match: Match = GET_NUMBER_PATTERN.search(text)
     if match is None:
         return None, text
     return int(match.group(1)), text[:match.start()].strip()

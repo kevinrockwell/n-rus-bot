@@ -158,12 +158,12 @@ class Quote(commands.Cog):
             await ctx.send(response)
 
     @staticmethod
-    def get_number_and_authors(text: str) -> Union[str, Tuple[Optional[int], Tuple[int]]]:
+    def get_number_and_authors(text: str) -> Tuple[Optional[int], Tuple[int]]:
         number, text = utils.get_number_matches(text)
         authors, text = utils.get_ending_tags(text.strip())
         text = text.strip()
         if text != '':
-            return text
+            print(f'Warning: TEXT {text} still present')
         return number, authors
 
     async def quote_from_message(self, message: discord.Message, quoter_id: int) -> None:
