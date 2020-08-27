@@ -87,8 +87,8 @@ class Quote(commands.Cog):
             n, authors = self.get_number_and_authors(text)
             if n is None:
                 n = 6  # Set to default if no amount given
-            if n > 6:
-                await ctx.send(f'{ctx.author.mention} Sending > 6 quotes not permitted')
+            if n > 20:
+                await ctx.send(f'{ctx.author.mention} Sending > 20 quotes not permitted')
                 return
             elif n < 1:
                 await ctx.send(f'{ctx.author.mention} Cannot send < 1 quote')
