@@ -1,6 +1,7 @@
 from random import randint
 
 from discord.ext import commands
+import discord
 
 from bot import NRus
 import utils
@@ -38,10 +39,13 @@ class Misc(commands.Cog):
         if len(nums) != 2 or not all(map(lambda a: a.isdigit(), nums)):
             await ctx.send(f'Input must be formatted like `1d6`, not `{dice}`')
             return
-        total = 0
-        for i in range(int(nums[0])):
-            total += randint(1, int(nums[1]))
-        await ctx.send(f'{ctx.message.author.mention} {total}')
+        total = []
+        for _ in range(int(nums[0])):
+            total.append(randint(1, int(nums[1])))
+        e = discord.Embed()
+        e.add_field(name=dice, value=",".join(f"`{x}`" for x in total))
+        e.add_field(name="Total", value=str(sum(total)))
+        await ctx.send(ctx.message.author.mention, embed=e)
 
     @commands.command(usage='1d6', name='solumroll')
     async def solum_roll(self, ctx: commands.Context, dice):
