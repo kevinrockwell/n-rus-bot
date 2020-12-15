@@ -11,6 +11,7 @@ import discord
 from discord.ext import commands
 
 from bot import NRus
+import utils
 
 
 # Matches one or more spaces because git output contains extra spaces to line up output
@@ -49,7 +50,7 @@ class Admin(commands.Cog):
 
     @commands.command(hidden=True)
     async def loaded(self, ctx: commands.Context) -> None:
-        e: discord.Embed = discord.Embed()
+        e: discord.Embed = utils.embed()
         e.add_field(name='Cogs Loaded:', value='\n'.join(self.bot.cogs))
         await ctx.send(embed=e)
 
@@ -80,7 +81,9 @@ class Admin(commands.Cog):
         else:
             await ctx.send('Checkout Complete.', embed=git_output_embed)
         if output.returncode != 0:
-            await ctx.send(f'Git checkout failed with return code {output.returncode}, not reloading extensions')
+            await ctx.send(
+                f'Git checkout failed with return code {output.returncode}, not reloading extensions'
+            )
             return
         await ctx.send('Reloading extensions...')
         try:
@@ -97,7 +100,9 @@ class Admin(commands.Cog):
             await self.bot.logout()
         for name in changed_modules:
             if MODULE_PATH_MATCH.fullmatch(name):
-                await ctx.send(f'Warning: {name} is in `nrus/modules/` but is not in `{self.bot.extension_file}`')
+                await ctx.send(
+                    f'Warning: {name} is in `nrus/modules/` but is not in `{self.bot.extension_file}`'
+                )
             if (module := sys.modules.get(name)) is None:
                 await ctx.send(f'Warning: Module {name} was changed but is not loaded')
                 continue
@@ -128,25 +133,27 @@ class Admin(commands.Cog):
     @staticmethod
     async def run_commands(command: str) -> subprocess.CompletedProcess:
         loop = asyncio.get_running_loop()
-        run = functools.partial(subprocess.run, command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        run = functools.partial(
+            subprocess.run, command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+        )
         return await loop.run_in_executor(None, run)
 
     # TODO see if changing this is required
     @staticmethod
     def format_process_output(output: subprocess.CompletedProcess):
         """Puts stdout and stderr into an embed, max 2048 characters per."""
-        e = discord.Embed()
+        e = utils.embed()
         if output.stdout:
             stdout = output.stdout.decode()
             if len(stdout) > 2048:
                 # Subtract 15: 6 for label, 6 for codeblocks, and 3 for `...`
-                stdout = stdout[:2048 - 15] + '...'
+                stdout = stdout[: 2048 - 15] + '...'
             e.description = f'stdout```{stdout}```'
         if output.stderr:
             stderr = output.stderr.decode()
             if len(stderr) > 2048:
                 # See stdout for subtracting 15 explanation
-                stderr = stderr[:2048 - 15] + '...'
+                stderr = stderr[: 2048 - 15] + '...'
             e.set_footer(text=f'stderr```{stderr}```')
         if len(e):
             return e

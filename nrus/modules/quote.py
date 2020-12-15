@@ -34,12 +34,17 @@ class Quote(commands.Cog):
             if star_count == 1:
                 await self.quote_from_message(message, payload.user_id)
 
-    @commands.group(aliases=['q'], invoke_without_command=True,
-                    usage='<quote> <author> [authors ...] or <quote> - <author> [authors ...]',
-                    help="- On its own, an alias for `quote add` -- Try `help quote`.\n\nMost commands use 1+ authors")
+    @commands.group(
+        aliases=['q'],
+        invoke_without_command=True,
+        usage='<quote> <author> [authors ...] or <quote> - <author> [authors ...]',
+        help="- On its own, an alias for `quote add` -- Try `help quote`.\n\nMost commands use 1+ authors",
+    )
     async def quote(self, ctx: commands.Context, *, text) -> None:
         author_ids, quote_text = utils.get_ending_tags(text.strip())
-        quote_text = quote_text.rstrip('-').rstrip()  # Strip whitespace and '-' characters from the end of quote_text
+        quote_text = quote_text.rstrip(
+            '-'
+        ).rstrip()  # Strip whitespace and '-' characters from the end of quote_text
         if author_ids is None:
             await ctx.send(f'{ctx.message.author.mention} No authors were found :(')
             return
@@ -50,14 +55,20 @@ class Quote(commands.Cog):
     async def add(self, ctx: commands.Context, *, text: str):
         await self.quote(ctx, text=text)
 
-    @quote.command(aliases=['s'], usage='<phrase> [authors ...] [number] ', help='- Search for quotes matching phrase')
+    @quote.command(
+        aliases=['s'],
+        usage='<phrase> [authors ...] [number] ',
+        help='- Search for quotes matching phrase',
+    )
     async def search(self, ctx: commands.Context, *, text: str):
         number, text = utils.get_number_matches(text.strip())
         authors, phrase = utils.get_ending_tags(text.strip())
         if number is None:
             number = 1  # Set to default if not amount specified
         elif number > 6:  # TODO Make this configurable on a guild by guild basis
-            await ctx.send(f'{ctx.message.author.mention} Sending > 6 quotes from a search not permitted.')
+            await ctx.send(
+                f'{ctx.message.author.mention} Sending > 6 quotes from a search not permitted.'
+            )
             return
         elif number < 1:
             await ctx.send(f'{ctx.message.author.mention} Cannot send less than 1 quote.')
@@ -65,9 +76,10 @@ class Quote(commands.Cog):
         if authors:
             query.update({'author_id': authors})
         result: AsyncIOMotorCursor = self.bot.db[str(ctx.guild.id)].find(
-            self.create_quote_query(query), {'score': {'$meta': 'textScore'}}, limit=number)
+            self.create_quote_query(query), {'score': {'$meta': 'textScore'}}, limit=number
+        )
         result.sort([('score', {'$meta': 'textScore'})])
-        e = discord.Embed()
+        e = utils.embed()
         i = 0
         async for i, quote in utils.async_enumerate(result, start=1):
             e = self.create_quote_embed(quote, self.nth_number_str(i), e=e)
@@ -80,8 +92,11 @@ class Quote(commands.Cog):
             title = f'{ctx.author.mention} Best match for {phrase}:'
         await ctx.send(title, embed=e)
 
-    @quote.command(name='list', usage='[authors ...] [number=6]',
-                   help='- List most recent [number] quotes by [authors]')
+    @quote.command(
+        name='list',
+        usage='[authors ...] [number=6]',
+        help='- List most recent [number] quotes by [authors]',
+    )
     async def list_(self, ctx: commands.Context, *, text: Optional[str] = None):
         if text:
             n, authors = self.get_number_and_authors(text)
@@ -97,10 +112,12 @@ class Quote(commands.Cog):
             authors = None
         query = {}
         if authors is not None:
-            query.update({'author_id': authors})  # Is formatted into correct MongoDB call by create_quote_query
+            query.update(
+                {'author_id': authors}
+            )  # Is formatted into correct MongoDB call by create_quote_query
         results = self.bot.db[str(ctx.guild.id)].find(self.create_quote_query(query), limit=n)
         results.sort('time', pymongo.DESCENDING)
-        e = discord.Embed()
+        e = utils.embed()
         i = 0
         async for i, quote in utils.async_enumerate(results, start=1):
             self.create_quote_embed(quote, self.nth_number_str(i), e)
@@ -110,9 +127,11 @@ class Quote(commands.Cog):
         else:
             await ctx.send(f'{ctx.message.author.mention} No quotes stored.')
 
-    @commands.check_any(commands.has_permissions(administrator=True),
-                        commands.has_permissions(manage_messages=True),
-                        commands.has_role(699765480566554645))
+    @commands.check_any(
+        commands.has_permissions(administrator=True),
+        commands.has_permissions(manage_messages=True),
+        commands.has_role(699765480566554645),
+    )
     @quote.command(hidden=True, help='- Not Yet Implemented')
     async def delete(self, ctx: commands.Context):
         await ctx.send(f"{ctx.author.mention} Sorry haven't implemented that yet :(")
@@ -128,8 +147,11 @@ class Quote(commands.Cog):
         e = self.create_quote_embed(quote_[0], 'Random Quote:')
         await ctx.send(ctx.author.mention, embed=e)
 
-    @quote.command(aliases=['number', 'countquotes'], usage='[authors ...]',
-                   help='- Count quotes stored, optionally by the specified authors')
+    @quote.command(
+        aliases=['number', 'countquotes'],
+        usage='[authors ...]',
+        help='- Count quotes stored, optionally by the specified authors',
+    )
     async def count(self, ctx: commands.Context, *, text: Optional[str] = None) -> None:
         query = {}
         if text:
@@ -170,13 +192,18 @@ class Quote(commands.Cog):
         e = await self.store_quote(message, (message.author.id,), quoter_id=quoter_id)
         await message.channel.send(f'<@!{quoter_id}>', embed=e)
 
-    async def store_quote(self, message: discord.Message, author_ids: Tuple[int], quote_text: Optional[str] = None,
-                          quoter_id: Optional[int] = None) -> discord.Embed:
+    async def store_quote(
+        self,
+        message: discord.Message,
+        author_ids: Tuple[int],
+        quote_text: Optional[str] = None,
+        quoter_id: Optional[int] = None,
+    ) -> discord.Embed:
         quote_object = {
             'author_id': author_ids,
             'quote': quote_text,
             'time': message.created_at,
-            'quoter_id': quoter_id
+            'quoter_id': quoter_id,
         }
         if quoter_id is None:
             quote_object['quoter_id'] = message.author.id
@@ -190,7 +217,7 @@ class Quote(commands.Cog):
             query = self.create_quote_query(quote_object, ignore=['time', 'quoter_id'])
             find_result = await self.bot.db[collection_name].find_one(query)
             if find_result is not None:
-                e = discord.Embed()
+                e = utils.embed()
                 e.add_field(name='Error:', value='Quote Already Exists', inline=False)
                 return self.create_quote_embed(quote_object, field_name='Quote:', e=e)
         await self.bot.db[collection_name].insert_one(quote_object)
@@ -234,11 +261,17 @@ class Quote(commands.Cog):
         return f'{n}{conversion_dict.get(last_n, "th")}'
 
     @classmethod
-    def create_quote_embed(cls, quote: dict, field_name: Optional[str] = 'Quote Stored:',
-                           e: Optional[discord.Embed] = None) -> discord.Embed:
+    def create_quote_embed(
+        cls,
+        quote: dict,
+        field_name: Optional[str] = 'Quote Stored:',
+        e: Optional[discord.Embed] = None,
+    ) -> discord.Embed:
         if e is None:
-            e: discord.Embed = discord.Embed()
-        attribution = f'- {cls.get_attribution_str(quote["author_id"])}\nQuoted by <@!{quote["quoter_id"]}>'
+            e: discord.Embed = utils.embed()
+        attribution = (
+            f'- {cls.get_attribution_str(quote["author_id"])}\nQuoted by <@!{quote["quoter_id"]}>'
+        )
         e.add_field(name=field_name, value=f'{quote["quote"]}\n{attribution}')
         return e  # TODO add check to see if embed is too long
 

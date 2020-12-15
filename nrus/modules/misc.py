@@ -46,7 +46,7 @@ class Misc(commands.Cog):
         total = []
         for _ in range(int(nums[0])):
             total.append(randint(1, int(nums[1])))
-        e = discord.Embed()
+        e = utils.embed()
         e.add_field(name=dice, value=",".join(f"`{x}`" for x in total))
         e.add_field(name="Total", value=str(sum(total)))
         await ctx.send(ctx.message.author.mention, embed=e)
@@ -64,7 +64,7 @@ class Misc(commands.Cog):
         seconds = time.time() - self.bot.start_time
         d = timedelta(seconds=seconds)
         discord.Color
-        e = discord.Embed(color=0x0D5B69)
+        e = utils.embed()
         e.add_field(name='Bot', value=timedelta(days=d.days, minutes=(int(d.seconds) // 60)))
         host = subprocess.run(['uptime'], stdout=subprocess.PIPE)
         match = re.search(r'.*up (.* \d{1,2}:\d{2}),', str(host.stdout, 'utf-8'))

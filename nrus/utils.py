@@ -2,6 +2,8 @@
 import re
 from typing import AsyncIterable, Match, Optional, Pattern, Set, Tuple, Union
 
+import discord
+
 AUTHORS_PATTERN: Pattern = re.compile(r'( ?<@!?[0-9]+>)+$')
 BASIC_INT_PATTERN: Pattern = re.compile(r'[0-9]+')
 GET_NUMBER_PATTERN: Pattern = re.compile(r' ?([0-9]+)$')
@@ -32,4 +34,9 @@ def get_number_matches(text: str) -> Tuple[Optional[int], str]:
     match: Match = GET_NUMBER_PATTERN.search(text)
     if match is None:
         return None, text
-    return int(match.group(1)), text[:match.start()].strip()
+    return int(match.group(1)), text[: match.start()].strip()
+
+
+def embed(**kwargs) -> discord.Embed:
+    """Create Embed with the right color"""
+    return discord.Embed(color=0x0D5B69, **kwargs)
