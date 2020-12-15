@@ -1,4 +1,8 @@
+from datetime import timedelta
 from random import randint
+import re
+import subprocess
+import time
 
 from discord.ext import commands
 import discord
@@ -54,6 +58,18 @@ class Misc(commands.Cog):
             await ctx.send(f'Input must be formatted like `1d6`, not `{dice}`')
             return
         await ctx.send(f'{ctx.message.author.mention} {1 * nums[0]}')
+
+    @commands.command()
+    async def uptime(self, ctx: commands.Context):
+        seconds = time.time() - self.bot.start_time
+        d = timedelta(seconds=seconds)
+        discord.Color
+        e = discord.Embed(color=0x0D5B69)
+        e.add_field(name='Bot', value=timedelta(days=d.days, minutes=(int(d.seconds) // 60)))
+        host = subprocess.run(['uptime'], stdout=subprocess.PIPE)
+        match = re.search(r'.*up (.* \d{1,2}:\d{2}),', str(host.stdout, 'utf-8'))
+        e.add_field(name='Host', value=match.group(1))
+        await ctx.send(embed=e)
 
 
 def setup(bot: NRus):
