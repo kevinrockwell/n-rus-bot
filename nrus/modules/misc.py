@@ -67,8 +67,9 @@ class Misc(commands.Cog):
         e = utils.embed()
         e.add_field(name='Bot', value=timedelta(days=d.days, minutes=(int(d.seconds) // 60)))
         host = subprocess.run(['uptime'], stdout=subprocess.PIPE)
-        match = re.search(r'.*up (.* \d{1,2}:\d{2}),', str(host.stdout, 'utf-8'))
-        e.add_field(name='Host', value=match.group(1))
+        match = re.search(r'.*up (.*\d{1,2}:\d{2}),', str(host.stdout, 'utf-8'))
+        if match:
+            e.add_field(name='Host', value=match.group(1))
         await ctx.send(embed=e)
 
 
