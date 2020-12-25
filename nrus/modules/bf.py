@@ -47,6 +47,7 @@ class WrappingInt(int):
         return self.__mul__(other)
 
     # FIXME: pylint no likey (int has no __div__?)
+    # TODO also do right division stuff
     def __div__(self, other):
         return self.__class__(super().__div__(other), self.min, self.max)
 
