@@ -2,5 +2,6 @@
     "modules.settings",
     "modules.quote",
     "modules.admin",
-    "modules.misc"
+    "modules.misc",
+    "modules.bf"
 ]
