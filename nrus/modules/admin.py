@@ -75,7 +75,7 @@ class Admin(commands.Cog):
     @commands.command(name='gitreload', hidden=True, aliases=['reloadgit'])
     async def git_reload(self, ctx: commands.Context):
         await ctx.send('Checking out from git...')
-        output = await self.run_commands('git pull origin master')
+        output = await self.run_commands('git pull origin main')
         if (git_output_embed := self.format_process_output(output)) is None:
             await ctx.send('No git output...')
         else:
