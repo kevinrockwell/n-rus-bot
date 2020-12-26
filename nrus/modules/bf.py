@@ -1,14 +1,24 @@
+import asyncio
 from collections import defaultdict
-from typing import DefaultDict
+import multiprocessing
+from typing import DefaultDict, Optional
 
 from discord.ext import commands
 
 # from bot import NRus
+import utils
 
 
-class BF(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
+class BFError(Exception):
+    """Base error class, includes context so error message can be sent to user"""
+
+    def __init__(self, ctx: commands.Context, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ctx = ctx
+
+
+class BFTimeoutError(BFError):
+    pass
 
 
 class WrappingInt(int):
@@ -88,8 +98,9 @@ class BFCells:
 
 
 class BFInstance(BFCells):
-    def __init__(self, program: str, input_: str = ''):
+    def __init__(self, ctx: commands.Context, program: str, input_: str = ''):
         super().__init__()
+        self.ctx = ctx
         self.program = [c for c in program if c in '<>+-,.[]']
         self.len = len(program)
         self.input = (c for c in input_)
@@ -101,7 +112,7 @@ class BFInstance(BFCells):
     def validate_program(self):
         """Program is invalid if not all loops are closed"""
         if self.program.count('[') != self.program.count(']'):
-            raise ValueError
+            raise BFError(self.ctx, 'Program has not matching `[` and `]`')
 
     @property
     def instruction(self):
@@ -125,7 +136,7 @@ class BFInstance(BFCells):
         char = self.input.__next__()  # Raises error if not enough input is provided
         self.cell = ord(char)
 
-    def run(self):
+    def run(self, timeout):
         commands = {
             '>': self.increment_pointer,
             '<': self.decrement_pointer,
@@ -142,7 +153,51 @@ class BFInstance(BFCells):
             command()
             self.program_pointer += 1
 
-        return ''.join(self.output)
+        return self
+
+
+class BF(commands.Cog):
+
+    MAXIMUM_PROCESSES = multiprocessing.cpu_count() // 2
+    TIMEOUT = 10.0  # Timeout in seconds
+
+    def __init__(self, bot):
+        self.bot = bot
+        self.pool = multiprocessing.Pool(self.MAXIMUM_PROCESSES)
+        self.loop: Optional[asyncio.BaseEventLoop] = None
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        self.loop = asyncio.get_running_loop()
+
+    def cog_unload(self):
+        """Need to close the process pool"""
+        self.pool.close()
+        self.pool.terminate()
+
+    @commands.group(name='bf', invoke_without_command=True)
+    async def bf(self, ctx: commands.Context, program: str):
+        # TODO FIGURE OUT CLEAN WAY TO DO INPUT
+        instance = BFInstance(ctx, program)
+        self.pool.apply_async(
+            instance.run,
+            (ctx,),
+            callback=self.completed_callback,
+            error_callback=self.error_callback,
+        )
+
+    def completed_callback(self, result: BFInstance):
+        """Schedules successful result to be sent"""
+        self.loop.call_soon_threadsafe(self.send_successful_call, result)
+
+    async def send_successful_call(self, result: BFInstance):
+        await result.ctx.send(f'{result.ctx.author.mention} {"".join(result.output)}')
+
+    def error_callback(self, exception):
+        self.loop.call_soon_threadsafe(self.send_error, exception)
+
+    async def send_error(self, exception: BFError):
+        await exception.ctx.send('{exception.ctx.author.mention} {str(exception)}')
 
 
 def setup(bot):
