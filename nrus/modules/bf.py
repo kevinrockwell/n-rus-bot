@@ -1,6 +1,7 @@
 import asyncio
 from collections import defaultdict
-import multiprocessing
+import concurrent
+import time
 from typing import DefaultDict, Optional
 
 from discord.ext import commands
@@ -10,11 +11,7 @@ import utils
 
 
 class BFError(Exception):
-    """Base error class, includes context so error message can be sent to user"""
-
-    def __init__(self, ctx: commands.Context, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ctx = ctx
+    pass
 
 
 class BFTimeoutError(BFError):
@@ -74,7 +71,11 @@ class BFCells:
 
     def __init__(self):
         self.pointer = WrappingInt(0, 0, 30000)
-        self._cells: DefaultDict[WrappingInt, WrappingInt] = defaultdict(lambda: self.DEFAULT_CELL)
+        self._cells: DefaultDict[WrappingInt, WrappingInt] = defaultdict(self.bf_cell_factory)
+
+    @classmethod
+    def bf_cell_factory(cls):
+        return cls.DEFAULT_CELL
 
     def increment(self):
         self.cell += 1
@@ -98,12 +99,14 @@ class BFCells:
 
 
 class BFInstance(BFCells):
-    def __init__(self, ctx: commands.Context, program: str, input_: str = ''):
+
+    CHECK_TIMEOUT_INTERVAL = 50  # Number of instructions between timeout checks
+
+    def __init__(self, program: str, input_: str = ''):
         super().__init__()
-        self.ctx = ctx
         self.program = [c for c in program if c in '<>+-,.[]']
         self.len = len(program)
-        self.input = (c for c in input_)
+        self.input = input_
         self.output = []
         self.validate_program()
         self.program_pointer = 0  # Tracks location in program
@@ -112,7 +115,7 @@ class BFInstance(BFCells):
     def validate_program(self):
         """Program is invalid if not all loops are closed"""
         if self.program.count('[') != self.program.count(']'):
-            raise BFError(self.ctx, 'Program has not matching `[` and `]`')
+            raise BFError('Invalid Program: `[` and `]` count not equal')
 
     @property
     def instruction(self):
@@ -133,8 +136,10 @@ class BFInstance(BFCells):
         self.output.append(chr(self.cell))
 
     def set_chr(self, value: str):
-        char = self.input.__next__()  # Raises error if not enough input is provided
-        self.cell = ord(char)
+        for c in self.input:
+            self.cell = c
+            yield
+        raise BFError('Error: Not Enough Input Provided')
 
     def run(self, timeout):
         commands = {
@@ -148,56 +153,48 @@ class BFInstance(BFCells):
             ']': self.end_loop,
         }
 
+        instructions_since_last_check = 0
+        start_time = time.time()
         while self.program_pointer < self.len:
             command = commands[self.instruction]
             command()
             self.program_pointer += 1
+            if timeout > 0:
+                instructions_since_last_check += 1
+                if instructions_since_last_check > self.CHECK_TIMEOUT_INTERVAL:
+                    instructions_since_last_check = 0
+                    if time.time() > start_time + timeout:
+                        raise BFTimeoutError(f'Error: Excecution time ({timeout}s) exceeded')
 
-        return self
+        return ''.join(self.output)
 
 
 class BF(commands.Cog):
 
-    MAXIMUM_PROCESSES = multiprocessing.cpu_count() // 2
+    MAXIMUM_PROCESSES = 2
     TIMEOUT = 10.0  # Timeout in seconds
 
     def __init__(self, bot):
         self.bot = bot
-        self.pool = multiprocessing.Pool(self.MAXIMUM_PROCESSES)
-        self.loop: Optional[asyncio.BaseEventLoop] = None
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        self.loop = asyncio.get_running_loop()
+        self.executor = concurrent.futures.ProcessPoolExecutor(self.MAXIMUM_PROCESSES)
 
     def cog_unload(self):
         """Need to close the process pool"""
-        self.pool.close()
-        self.pool.terminate()
+        self.executor.shutdown(cancel_futures=True)
 
     @commands.group(name='bf', invoke_without_command=True)
     async def bf(self, ctx: commands.Context, program: str):
         # TODO FIGURE OUT CLEAN WAY TO DO INPUT
-        instance = BFInstance(ctx, program)
-        self.pool.apply_async(
-            instance.run,
-            (ctx,),
-            callback=self.completed_callback,
-            error_callback=self.error_callback,
-        )
-
-    def completed_callback(self, result: BFInstance):
-        """Schedules successful result to be sent"""
-        self.loop.call_soon_threadsafe(self.send_successful_call, result)
-
-    async def send_successful_call(self, result: BFInstance):
-        await result.ctx.send(f'{result.ctx.author.mention} {"".join(result.output)}')
-
-    def error_callback(self, exception):
-        self.loop.call_soon_threadsafe(self.send_error, exception)
-
-    async def send_error(self, exception: BFError):
-        await exception.ctx.send('{exception.ctx.author.mention} {str(exception)}')
+        try:
+            instance = BFInstance(program)
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(self.executor, instance.run, self.TIMEOUT)
+        except BFError as e:
+            await ctx.send(f'{ctx.author.mention} {e}')
+        except Exception:
+            await ctx.send(f'{ctx.author.mention} Sorry! An internal error occured')
+            raise
+        await ctx.send(f'{ctx.author.mention} Output:```{result}```')
 
 
 def setup(bot):
