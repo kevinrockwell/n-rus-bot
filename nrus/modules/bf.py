@@ -39,7 +39,7 @@ class WrappingInt(int):
         return self.__class__(super().__add__(other), self.min, self.max)
 
     def __radd__(self, other):
-        return self.__radd__(other)
+        return self.__add__(other)
 
     def __sub__(self, other):
         return self.__add__(-other)
@@ -53,10 +53,17 @@ class WrappingInt(int):
     def __rmul__(self, other):
         return self.__mul__(other)
 
-    # FIXME: pylint no likey (int has no __div__?)
-    # TODO also do right division stuff
-    def __div__(self, other):
-        return self.__class__(super().__div__(other), self.min, self.max)
+    def __truediv__(self, other):
+        return self.__class__(super().__truediv__(other), self.min, self.max)
+
+    def __rtruediv__(self, other):
+        return self.__class__(super().__rtruediv__(other), self.min, self.max)
+
+    def __floordiv__(self, other):
+        return self.__class__(super().__floordiv__(other), self.min, self.max)
+
+    def __rfloordiv__(self, other):
+        return self.__class__(super().__rfloordiv__(other), self.min, self.max)
 
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__, super().__repr__())
