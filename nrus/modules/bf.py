@@ -176,7 +176,7 @@ class BFInstance(BFCells):
         return ''.join(self.output)
 
 
-class BF(commands.Cog):
+class Brainfuck(commands.Cog):
 
     MAXIMUM_PROCESSES = 2
     TIMEOUT = 10.0  # Timeout in seconds
@@ -189,7 +189,11 @@ class BF(commands.Cog):
         """Need to close the process pool"""
         self.executor.shutdown(cancel_futures=True)
 
-    @commands.group(name='bf', invoke_without_command=True)
+    @commands.command(
+        name='bf',
+        usage='bf <program> (input not yet impmented)',
+        help='https://en.wikipedia.org/wiki/Brainfuck',
+    )
     async def bf(self, ctx: commands.Context, program: str):
         # TODO FIGURE OUT CLEAN WAY TO DO INPUT
         try:
@@ -205,4 +209,4 @@ class BF(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(BF(bot))
+    bot.add_cog(Brainfuck(bot))
