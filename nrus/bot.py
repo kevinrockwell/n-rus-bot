@@ -62,14 +62,14 @@ class NRus(commands.Bot):
     def reload_extensions(self):
         self.unload_extensions()
         self.load_extensions()
-    
+
     def load_extension(self, name):
         super().load_extension(name)
         print(f'Loaded {name}')
 
     def unload_extension(self, name):
         super().unload_extension(name)
-        print(f'Loaded {name}')
+        print(f'Unloaded {name}')
 
     def reload_extension(self, name):
         super().reload_extension(name)
