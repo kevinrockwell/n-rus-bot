@@ -20,7 +20,7 @@ class NRus(commands.Bot):
         if self.settings['release'] == 'production':
             self.db: motor.AsyncIOMotorDatabase = motor.AsyncIOMotorClient().NRus
         elif self.settings['release'] == 'devel':
-            self.db: motor.AsyncIOMotorCollection = motor.AsyncIOMotorClient().NRusTesting
+            self.db: motor.AsyncIOMotorDatabase = motor.AsyncIOMotorClient().NRusTesting
         else:
             raise ValueError('Invalid value for `release` in `settings.json`')
         self.guild_settings: motor.AsyncIOMotorCollection = self.db.guilds
